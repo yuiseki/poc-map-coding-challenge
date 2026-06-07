@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Map Coding Challenge</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@latest/dist/pmtiles.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #4f8ef7;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+    html, body { height: 100%; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* Layout */
+    .app { display: grid; grid-template-columns: 220px 1fr; height: 100vh; }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar-title {
+      padding: 16px; font-size: 13px; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.05em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .challenge-item {
+      padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .challenge-item:hover { background: var(--surface2); }
+    .challenge-item.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+    .challenge-item .num { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
+    .challenge-item .title { font-size: 13px; margin-top: 2px; }
+    .challenge-item .status { font-size: 11px; margin-top: 4px; }
+    .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+    .dot-pass { background: var(--green); }
+    .dot-fail { background: var(--red); }
+    .dot-pending { background: var(--text-dim); }
+
+    /* Main */
+    .main { display: grid; grid-template-rows: 1fr 280px; overflow: hidden; }
+
+    /* Top: task + map */
+    .top { display: grid; grid-template-columns: 380px 1fr; overflow: hidden; }
+
+    /* Task panel */
+    .task-panel {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto; padding: 20px;
+    }
+    .task-panel h1 { font-size: 18px; margin-bottom: 8px; }
+    .task-panel h2 { font-size: 13px; color: var(--accent); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .task-panel p { font-size: 13px; color: var(--text-dim); line-height: 1.7; margin-bottom: 8px; }
+    .task-panel pre {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px; font-size: 12px; font-family: var(--mono); overflow-x: auto;
+      margin: 8px 0; line-height: 1.6; color: #c9d1d9;
+    }
+    .task-panel code { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+
+    /* Map */
+    #map { width: 100%; height: 100%; }
+
+    /* Bottom: editor + tests */
+    .bottom { display: grid; grid-template-columns: 1fr 340px; border-top: 1px solid var(--border); overflow: hidden; }
+
+    /* Editor */
+    .editor-panel { display: flex; flex-direction: column; overflow: hidden; }
+    .editor-header {
+      padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .editor-header span { font-size: 12px; color: var(--text-dim); }
+    .run-btn {
+      padding: 5px 14px; background: var(--accent); color: white; border: none;
+      border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+      margin-left: auto; transition: opacity 0.15s;
+    }
+    .run-btn:hover { opacity: 0.85; }
+    textarea.code-editor {
+      flex: 1; background: var(--bg); color: #c9d1d9; border: none; outline: none;
+      font-family: var(--mono); font-size: 13px; line-height: 1.6;
+      padding: 16px; resize: none; tab-size: 2;
+    }
+
+    /* Test results */
+    .tests-panel {
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .tests-header {
+      padding: 8px 16px; border-bottom: 1px solid var(--border);
+      font-size: 12px; color: var(--text-dim); font-weight: 600;
+    }
+    .tests-list { overflow-y: auto; flex: 1; }
+    .test-item {
+      padding: 8px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 8px; font-size: 12px;
+    }
+    .test-icon { margin-top: 1px; flex-shrink: 0; }
+    .test-name { line-height: 1.4; }
+    .test-error { color: var(--red); font-size: 11px; margin-top: 3px; font-family: var(--mono); }
+    .test-summary {
+      padding: 8px 14px; font-size: 12px; font-weight: 600;
+      border-top: 1px solid var(--border); background: var(--surface2);
+    }
+    .summary-pass { color: var(--green); }
+    .summary-fail { color: var(--red); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-title">Map Coding Challenge</div>
+    <div id="sidebar-list"></div>
+  </aside>
+  <main class="main">
+    <div class="top">
+      <div class="task-panel" id="task-panel"></div>
+      <div id="map"></div>
+    </div>
+    <div class="bottom">
+      <div class="editor-panel">
+        <div class="editor-header">
+          <span id="editor-filename">index.js</span>
+          <button class="run-btn" onclick="runTests()">▶ Run Tests</button>
+        </div>
+        <textarea class="code-editor" id="code-editor" spellcheck="false"></textarea>
+      </div>
+      <div class="tests-panel">
+        <div class="tests-header" id="tests-header">テスト結果</div>
+        <div class="tests-list" id="tests-list"></div>
+        <div class="test-summary" id="test-summary"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── PMTiles protocol ──────────────────────────────────────────────────────────
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol));
+
+const MAP_STYLE = 'https://z.yuiseki.net/static/maps/styles/osm-bright.json';
+
+// ── Challenge definitions ─────────────────────────────────────────────────────
+const CHALLENGES = [
+  {
+    id: '01',
+    title: '大圏距離',
+    subtitle: 'Great Circle Distance',
+    description: `
+<h1>01: Great Circle Distance（大圏距離）</h1>
+<p>地球上の2点間の最短距離（大圏距離）を計算してください。<br>
+Haversine 公式を使って実装します。地球の半径は <code>6371 km</code> を使用してください。</p>
+<h2>制約</h2>
+<p>座標は <code>[longitude, latitude]</code> の形式（GeoJSON 準拠）。<br>
+誤差は <b>±1 km</b> 以内であること。</p>
+<h2>Haversine 公式</h2>
+<pre>a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlon/2)
+c = 2 · atan2(√a, √(1−a))
+d = R · c</pre>
+<h2>関数シグネチャ</h2>
+<pre>function greatCircleDistance(from, to) {
+  // from: [lon, lat], to: [lon, lat]
+  // return: number (km)
+}</pre>`,
+    defaultCode:
+`function greatCircleDistance(from, to) {
+  // Write your code here
+  return 0;
+}`,
+    tests: [
+      {
+        name: '同じ地点の距離は 0',
+        run: (fn) => {
+          const d = fn([0, 0], [0, 0]);
+          if (d !== 0) throw new Error(`Expected 0, got ${d}`);
+        }
+      },
+      {
+        name: '東京 → パリ: 約 9715 km',
+        run: (fn) => {
+          const d = fn([139.6917, 35.6895], [2.3522, 48.8566]);
+          if (Math.abs(d - 9715) > 1) throw new Error(`Expected ~9715 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: '東京 → ニューヨーク: 約 10838 km',
+        run: (fn) => {
+          const d = fn([139.6917, 35.6895], [-74.006, 40.7128]);
+          if (Math.abs(d - 10838) > 1) throw new Error(`Expected ~10838 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: '東京 → シドニー: 約 7823 km',
+        run: (fn) => {
+          const d = fn([139.6917, 35.6895], [151.2093, -33.8688]);
+          if (Math.abs(d - 7823) > 1) throw new Error(`Expected ~7823 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: '赤道上の経度 90° 差: 約 10018 km',
+        run: (fn) => {
+          const d = fn([0, 0], [90, 0]);
+          if (Math.abs(d - 10018) > 1) throw new Error(`Expected ~10018 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: '北極 → 南極: 約 20015 km',
+        run: (fn) => {
+          const d = fn([0, 90], [0, -90]);
+          if (Math.abs(d - 20015) > 1) throw new Error(`Expected ~20015 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: 'ロンドン → ケープタウン: 約 9671 km',
+        run: (fn) => {
+          const d = fn([-0.1276, 51.5074], [18.4241, -33.9249]);
+          if (Math.abs(d - 9671) > 1) throw new Error(`Expected ~9671 km, got ${d.toFixed(1)}`);
+        }
+      },
+      {
+        name: '距離は対称（from ↔ to）',
+        run: (fn) => {
+          const d1 = fn([139.6917, 35.6895], [2.3522, 48.8566]);
+          const d2 = fn([2.3522, 48.8566], [139.6917, 35.6895]);
+          if (Math.abs(d1 - d2) > 0.001) throw new Error(`Not symmetric: ${d1} vs ${d2}`);
+        }
+      },
+    ],
+    // 地図に表示する都市ペア
+    mapData: {
+      cities: [
+        { name: '東京', coord: [139.6917, 35.6895] },
+        { name: 'パリ', coord: [2.3522, 48.8566] },
+        { name: 'ニューヨーク', coord: [-74.006, 40.7128] },
+        { name: 'シドニー', coord: [151.2093, -33.8688] },
+        { name: 'ロンドン', coord: [-0.1276, 51.5074] },
+        { name: 'ケープタウン', coord: [18.4241, -33.9249] },
+      ],
+      pairs: [
+        [0, 1], [0, 2], [0, 3], [4, 5],
+      ],
+    },
+    setupMap: (map, userFn) => {
+      const cities = CHALLENGES[0].mapData.cities;
+      const pairs = CHALLENGES[0].mapData.pairs;
+
+      const lines = pairs.map(([i, j]) => {
+        const from = cities[i].coord;
+        const to = cities[j].coord;
+        let label = '';
+        if (userFn) {
+          try { label = userFn(from, to).toFixed(0) + ' km'; } catch(e) { label = '?'; }
+        }
+        return { from, to, label };
+      });
+
+      map.addSource('lines', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: lines.map(l => ({
+            type: 'Feature',
+            properties: { label: l.label },
+            geometry: { type: 'LineString', coordinates: [l.from, l.to] }
+          }))
+        }
+      });
+      map.addLayer({ id: 'lines', type: 'line', source: 'lines',
+        paint: { 'line-color': '#4f8ef7', 'line-width': 1.5, 'line-dasharray': [4, 2] }
+      });
+
+      map.addSource('cities', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: cities.map(c => ({
+            type: 'Feature',
+            properties: { name: c.name },
+            geometry: { type: 'Point', coordinates: c.coord }
+          }))
+        }
+      });
+      map.addLayer({ id: 'cities', type: 'circle', source: 'cities',
+        paint: { 'circle-radius': 5, 'circle-color': '#f59e0b', 'circle-stroke-width': 1.5, 'circle-stroke-color': '#fff' }
+      });
+      map.addLayer({ id: 'city-labels', type: 'symbol', source: 'cities',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' },
+        paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#0f1117', 'text-halo-width': 1.5 }
+      });
+    },
+    mapCenter: [60, 30], mapZoom: 1.5,
+  },
+
+  {
+    id: '02',
+    title: 'バウンディングボックス',
+    subtitle: 'Bounding Box',
+    description: `
+<h1>02: Bounding Box（バウンディングボックス）</h1>
+<p>複数の地点を内包する最小の矩形領域を求めてください。<br>
+地図の自動フィット、空間インデックスなどに使われる基礎演算です。</p>
+<h2>出力形式</h2>
+<pre>{ west, south, east, north }</pre>
+<h2>制約</h2>
+<p>入力配列は 1 件以上。各値は入力座標の min/max をそのまま使う。</p>
+<h2>関数シグネチャ</h2>
+<pre>function boundingBox(points) {
+  // points: [lon, lat][]
+  // return: { west, south, east, north }
+}</pre>`,
+    defaultCode:
+`function boundingBox(points) {
+  // Write your code here
+  return { west: 0, south: 0, east: 0, north: 0 };
+}`,
+    tests: [
+      {
+        name: '日本主要都市のバウンディングボックス',
+        run: (fn) => {
+          const pts = [[139.6917, 35.6895],[135.5023, 34.6937],[130.4017, 33.5904],[141.3544, 43.0642]];
+          const b = fn(pts);
+          if (b.west !== 130.4017) throw new Error(`west: expected 130.4017, got ${b.west}`);
+          if (b.south !== 33.5904) throw new Error(`south: expected 33.5904, got ${b.south}`);
+          if (b.east !== 141.3544) throw new Error(`east: expected 141.3544, got ${b.east}`);
+          if (b.north !== 43.0642) throw new Error(`north: expected 43.0642, got ${b.north}`);
+        }
+      },
+      {
+        name: '1点 → 全辺が同じ値',
+        run: (fn) => {
+          const b = fn([[139.6917, 35.6895]]);
+          if (b.west !== 139.6917 || b.east !== 139.6917) throw new Error('west/east mismatch');
+          if (b.south !== 35.6895 || b.north !== 35.6895) throw new Error('south/north mismatch');
+        }
+      },
+      {
+        name: '2点のバウンディングボックス',
+        run: (fn) => {
+          const b = fn([[0, 0], [10, 20]]);
+          if (b.west !== 0 || b.south !== 0 || b.east !== 10 || b.north !== 20)
+            throw new Error(`Got ${JSON.stringify(b)}`);
+        }
+      },
+      {
+        name: '南半球（負の緯度）',
+        run: (fn) => {
+          const pts = [[151.2093,-33.8688],[144.9631,-37.8136],[115.8605,-31.9505]];
+          const b = fn(pts);
+          if (b.south !== -37.8136) throw new Error(`south: expected -37.8136, got ${b.south}`);
+          if (b.north !== -31.9505) throw new Error(`north: expected -31.9505, got ${b.north}`);
+        }
+      },
+      {
+        name: '西半球（負の経度）',
+        run: (fn) => {
+          const pts = [[-74.006,40.7128],[-87.6298,41.8781],[-118.2437,34.0522]];
+          const b = fn(pts);
+          if (b.west !== -118.2437) throw new Error(`west: expected -118.2437, got ${b.west}`);
+          if (b.east !== -74.006) throw new Error(`east: expected -74.006, got ${b.east}`);
+        }
+      },
+      {
+        name: '赤道・本初子午線をまたぐ',
+        run: (fn) => {
+          const b = fn([[-10, -5], [10, 5]]);
+          if (b.west !== -10 || b.east !== 10 || b.south !== -5 || b.north !== 5)
+            throw new Error(`Got ${JSON.stringify(b)}`);
+        }
+      },
+    ],
+    mapData: {
+      pointSets: [
+        {
+          label: '日本主要都市',
+          points: [
+            { name: '東京', coord: [139.6917, 35.6895] },
+            { name: '大阪', coord: [135.5023, 34.6937] },
+            { name: '福岡', coord: [130.4017, 33.5904] },
+            { name: '札幌', coord: [141.3544, 43.0642] },
+          ]
+        }
+      ]
+    },
+    setupMap: (map, userFn) => {
+      const pts = CHALLENGES[1].mapData.pointSets[0].points;
+      const coords = pts.map(p => p.coord);
+
+      map.addSource('points', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: pts.map(p => ({
+            type: 'Feature',
+            properties: { name: p.name },
+            geometry: { type: 'Point', coordinates: p.coord }
+          }))
+        }
+      });
+      map.addLayer({ id: 'points', type: 'circle', source: 'points',
+        paint: { 'circle-radius': 6, 'circle-color': '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' }
+      });
+      map.addLayer({ id: 'point-labels', type: 'symbol', source: 'points',
+        layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top' },
+        paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#0f1117', 'text-halo-width': 1.5 }
+      });
+
+      if (userFn) {
+        let bbox;
+        try { bbox = userFn(coords); } catch(e) { return; }
+        if (!bbox || typeof bbox.west !== 'number') return;
+        const ring = [
+          [bbox.west, bbox.south], [bbox.east, bbox.south],
+          [bbox.east, bbox.north], [bbox.west, bbox.north], [bbox.west, bbox.south]
+        ];
+        map.addSource('bbox', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] } }
+        });
+        map.addLayer({ id: 'bbox-fill', type: 'fill', source: 'bbox',
+          paint: { 'fill-color': '#4f8ef7', 'fill-opacity': 0.1 }
+        });
+        map.addLayer({ id: 'bbox-line', type: 'line', source: 'bbox',
+          paint: { 'line-color': '#4f8ef7', 'line-width': 2 }
+        });
+      }
+    },
+    mapCenter: [136, 38], mapZoom: 4,
+  },
+
+  {
+    id: '03',
+    title: 'ポイント・イン・ポリゴン',
+    subtitle: 'Point in Polygon',
+    description: `
+<h1>03: Point in Polygon（ポイント・イン・ポリゴン）</h1>
+<p>ある地点が多角形の内側にあるかどうかを判定してください。<br>
+<b>レイキャスティング法</b>で実装します。</p>
+<h2>レイキャスティング法</h2>
+<p>点から右方向へ水平なレイを飛ばし、ポリゴンの辺と交差する回数が<br>
+<b>奇数</b> なら内側、<b>偶数</b> なら外側。</p>
+<h2>制約</h2>
+<p>ポリゴンは自己交差しない単純な多角形。穴は考慮不要。</p>
+<h2>関数シグネチャ</h2>
+<pre>function pointInPolygon(point, polygon) {
+  // point: [lon, lat]
+  // polygon: [lon, lat][]
+  // return: boolean
+}</pre>`,
+    defaultCode:
+`function pointInPolygon(point, polygon) {
+  // Write your code here
+  return false;
+}`,
+    tests: [
+      {
+        name: '東京駅はポリゴン内側',
+        run: (fn) => {
+          const poly = [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]];
+          if (fn([139.7, 35.7], poly) !== true) throw new Error('Expected true');
+        }
+      },
+      {
+        name: '大阪はポリゴン外側',
+        run: (fn) => {
+          const poly = [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]];
+          if (fn([135.5, 34.7], poly) !== false) throw new Error('Expected false');
+        }
+      },
+      {
+        name: 'ポリゴン右外側の点',
+        run: (fn) => {
+          const poly = [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]];
+          if (fn([140.0, 35.7], poly) !== false) throw new Error('Expected false');
+        }
+      },
+      {
+        name: 'ポリゴン左外側の点',
+        run: (fn) => {
+          const poly = [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]];
+          if (fn([139.4, 35.7], poly) !== false) throw new Error('Expected false');
+        }
+      },
+      {
+        name: '三角形の内側',
+        run: (fn) => {
+          if (fn([5, 3], [[0,0],[10,0],[5,10]]) !== true) throw new Error('Expected true');
+        }
+      },
+      {
+        name: '三角形の外側',
+        run: (fn) => {
+          if (fn([9, 5], [[0,0],[10,0],[5,10]]) !== false) throw new Error('Expected false');
+        }
+      },
+      {
+        name: 'L字型ポリゴンの内側',
+        run: (fn) => {
+          const L = [[0,0],[4,0],[4,2],[2,2],[2,4],[0,4]];
+          if (fn([1, 1], L) !== true) throw new Error('[1,1] Expected true');
+          if (fn([1, 3], L) !== true) throw new Error('[1,3] Expected true');
+        }
+      },
+      {
+        name: 'L字型の欠けた部分は外側',
+        run: (fn) => {
+          const L = [[0,0],[4,0],[4,2],[2,2],[2,4],[0,4]];
+          if (fn([3, 3], L) !== false) throw new Error('[3,3] Expected false');
+        }
+      },
+      {
+        name: '閉じたリング（最初と最後が同じ）でも動作する',
+        run: (fn) => {
+          const closed = [[0,0],[10,0],[10,10],[0,10],[0,0]];
+          if (fn([5, 5], closed) !== true) throw new Error('Expected true');
+          if (fn([15, 5], closed) !== false) throw new Error('Expected false');
+        }
+      },
+    ],
+    mapData: {
+      polygon: [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]],
+      testPoints: [
+        { coord: [139.7, 35.7], label: '東京駅', inside: true },
+        { coord: [140.0, 35.7], label: '外側(右)', inside: false },
+        { coord: [139.4, 35.7], label: '外側(左)', inside: false },
+        { coord: [139.7, 36.0], label: '外側(上)', inside: false },
+        { coord: [135.5, 34.7], label: '大阪', inside: false },
+      ]
+    },
+    setupMap: (map, userFn) => {
+      const { polygon, testPoints } = CHALLENGES[2].mapData;
+      const ring = [...polygon, polygon[0]];
+
+      map.addSource('polygon', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] } }
+      });
+      map.addLayer({ id: 'polygon-fill', type: 'fill', source: 'polygon',
+        paint: { 'fill-color': '#4f8ef7', 'fill-opacity': 0.15 }
+      });
+      map.addLayer({ id: 'polygon-line', type: 'line', source: 'polygon',
+        paint: { 'line-color': '#4f8ef7', 'line-width': 2 }
+      });
+
+      const features = testPoints.map(p => {
+        let result = null;
+        if (userFn) { try { result = userFn(p.coord, polygon); } catch(e) {} }
+        const correct = result === p.inside;
+        let color = '#94a3b8';
+        if (result !== null) color = p.inside ? '#22c55e' : '#ef4444';
+        return {
+          type: 'Feature',
+          properties: { label: p.label, color },
+          geometry: { type: 'Point', coordinates: p.coord }
+        };
+      });
+
+      map.addSource('test-points', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+      map.addLayer({ id: 'test-points', type: 'circle', source: 'test-points',
+        paint: { 'circle-radius': 7, 'circle-color': ['get', 'color'], 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' }
+      });
+      map.addLayer({ id: 'test-labels', type: 'symbol', source: 'test-points',
+        layout: { 'text-field': ['get', 'label'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top' },
+        paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#0f1117', 'text-halo-width': 1.5 }
+      });
+    },
+    mapCenter: [139.0, 35.7], mapZoom: 6,
+  },
+];
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let currentChallenge = 0;
+let map = null;
+let testResults = [];
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+function initMap(challenge) {
+  if (map) { map.remove(); map = null; }
+  map = new maplibregl.Map({
+    container: 'map',
+    style: MAP_STYLE,
+    center: challenge.mapCenter,
+    zoom: challenge.mapZoom,
+    attributionControl: false,
+  });
+  map.on('load', () => {
+    const userFn = getUserFn(challenge);
+    challenge.setupMap(map, userFn);
+  });
+}
+
+function getUserFn(challenge) {
+  const code = document.getElementById('code-editor').value;
+  try {
+    // Extract function name from challenge
+    const fn = new Function(code + `\nreturn ${challenge.defaultCode.match(/function (\w+)/)[1]};`)();
+    return fn;
+  } catch(e) {
+    return null;
+  }
+}
+
+// ── Test runner ───────────────────────────────────────────────────────────────
+function runTests() {
+  const challenge = CHALLENGES[currentChallenge];
+  const code = document.getElementById('code-editor').value;
+  let fn;
+  try {
+    const fnName = challenge.defaultCode.match(/function (\w+)/)[1];
+    fn = new Function(code + `\nreturn ${fnName};`)();
+  } catch(e) {
+    showError(`構文エラー: ${e.message}`);
+    return;
+  }
+
+  const results = challenge.tests.map(t => {
+    try {
+      t.run(fn);
+      return { name: t.name, pass: true, error: null };
+    } catch(e) {
+      return { name: t.name, pass: false, error: e.message };
+    }
+  });
+
+  testResults = results;
+  renderTestResults(results);
+  updateSidebarStatus(currentChallenge, results);
+
+  // Refresh map with user's function
+  if (map && map.isStyleLoaded()) {
+    refreshMapLayers(challenge, fn);
+  } else if (map) {
+    map.once('load', () => refreshMapLayers(challenge, fn));
+  }
+}
+
+function refreshMapLayers(challenge, fn) {
+  // Remove existing dynamic layers
+  ['lines','cities','city-labels','points','point-labels','bbox','bbox-fill','bbox-line',
+   'polygon','polygon-fill','polygon-line','test-points','test-labels'].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(id)) map.removeSource(id);
+  });
+  challenge.setupMap(map, fn);
+}
+
+function renderTestResults(results) {
+  const list = document.getElementById('tests-list');
+  const summary = document.getElementById('test-summary');
+  const header = document.getElementById('tests-header');
+  const pass = results.filter(r => r.pass).length;
+  const fail = results.length - pass;
+
+  list.innerHTML = results.map(r => `
+    <div class="test-item">
+      <span class="test-icon">${r.pass ? '✅' : '❌'}</span>
+      <div>
+        <div class="test-name">${r.name}</div>
+        ${r.error ? `<div class="test-error">${r.error}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  header.textContent = `テスト結果 ${pass}/${results.length}`;
+  summary.innerHTML = fail === 0
+    ? `<span class="summary-pass">✅ 全テスト合格！ (${pass}/${results.length})</span>`
+    : `<span class="summary-fail">❌ ${fail} 件失敗 / ${pass} 件合格</span>`;
+}
+
+function showError(msg) {
+  document.getElementById('tests-list').innerHTML =
+    `<div class="test-item"><span class="test-icon">⚠️</span><div class="test-error">${msg}</div></div>`;
+  document.getElementById('tests-header').textContent = 'テスト結果';
+  document.getElementById('test-summary').innerHTML = '';
+}
+
+function updateSidebarStatus(idx, results) {
+  const pass = results.filter(r => r.pass).length;
+  const el = document.getElementById(`status-${idx}`);
+  if (!el) return;
+  if (pass === results.length) {
+    el.innerHTML = `<span class="status-dot dot-pass"></span>${pass}/${results.length} 合格`;
+  } else {
+    el.innerHTML = `<span class="status-dot dot-fail"></span>${pass}/${results.length} 合格`;
+  }
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('sidebar-list');
+  list.innerHTML = CHALLENGES.map((c, i) => `
+    <div class="challenge-item ${i === currentChallenge ? 'active' : ''}" onclick="selectChallenge(${i})">
+      <div class="num">${c.id}</div>
+      <div class="title">${c.title}<br><small style="color:var(--text-dim);font-size:10px">${c.subtitle}</small></div>
+      <div class="status" id="status-${i}">
+        <span class="status-dot dot-pending"></span>未実行
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectChallenge(idx) {
+  currentChallenge = idx;
+  const c = CHALLENGES[idx];
+  document.getElementById('task-panel').innerHTML = c.description;
+  document.getElementById('code-editor').value = c.defaultCode;
+  document.getElementById('tests-list').innerHTML = '';
+  document.getElementById('tests-header').textContent = 'テスト結果';
+  document.getElementById('test-summary').innerHTML = '';
+  renderSidebar();
+  initMap(c);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+renderSidebar();
+selectChallenge(0);
+</script>
+</body>
+</html>

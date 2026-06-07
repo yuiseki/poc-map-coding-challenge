@@ -1,0 +1,14 @@
+{
+  "name": "map-coding-challenge",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test",
+    "test:01": "node --experimental-strip-types --test 01/index.test.ts",
+    "test:02": "node --experimental-strip-types --test 02/index.test.ts",
+    "test:03": "node --experimental-strip-types --test 03/index.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}
