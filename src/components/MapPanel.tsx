@@ -8,7 +8,7 @@ import type { Challenge, TestResult } from '../challenges/types';
 const protocol = new Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol));
 
-const MAP_STYLE = 'https://z.yuiseki.net/static/maps/styles/osm-bright.json';
+const MAP_STYLE = 'https://z.yuiseki.net/static/maps/styles/osm-fiord.json';
 
 type Props = {
   challenge: Challenge;
