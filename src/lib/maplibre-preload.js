@@ -1,4 +1,4 @@
-class MaplibrePreload {
+export class MaplibrePreload {
 
     constructor(map, options = {}) {
         this.map = map;
