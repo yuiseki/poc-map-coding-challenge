@@ -148,6 +148,22 @@ export const day05: Challenge = {
   return [];
 }`,
   functionName: 'solve',
+  typeDeclarations: `
+interface PointFeature {
+  type: "Feature";
+  geometry: {
+    type: "Point";
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  properties: { [key: string]: string };
+}
+declare function solve(
+  features: PointFeature[],
+  property: string,
+  value: string,
+  bbox: [number, number, number, number] // [west, south, east, north]
+): PointFeature[];
+`,
   tests: [
     {
       name: 'category="cafe" かつ bbox 内のものを返す',

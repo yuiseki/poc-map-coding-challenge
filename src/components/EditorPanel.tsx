@@ -1,4 +1,7 @@
+import { useRef, useEffect } from 'react';
 import Editor, { loader } from '@monaco-editor/react';
+import type { Monaco } from '@monaco-editor/react';
+import type { IDisposable } from 'monaco-editor';
 
 // Load Monaco from CDN to avoid Vite worker config
 loader.config({
@@ -7,12 +10,51 @@ loader.config({
 
 type Props = {
   value: string;
+  typeDeclarations: string;
   onChange: (v: string) => void;
   onRun: () => void;
   isRunning: boolean;
 };
 
-export function EditorPanel({ value, onChange, onRun, isRunning }: Props) {
+export function EditorPanel({ value, typeDeclarations, onChange, onRun, isRunning }: Props) {
+  const monacoRef = useRef<Monaco | null>(null);
+  const libRef = useRef<IDisposable | null>(null);
+
+  // Update type declarations when challenge changes
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    libRef.current?.dispose();
+    libRef.current = monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      typeDeclarations,
+      'ts:challenge.d.ts'
+    );
+  }, [typeDeclarations]);
+
+  function handleMount(_editor: unknown, monaco: Monaco) {
+    monacoRef.current = monaco;
+
+    // Enable JavaScript type checking (checkJs)
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+      noSuggestionDiagnostics: false,
+    });
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ES2022,
+      allowJs: true,
+      checkJs: true,
+      noImplicitAny: false,
+      strict: false,
+    });
+
+    // Inject initial type declarations
+    libRef.current = monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      typeDeclarations,
+      'ts:challenge.d.ts'
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', background: '#1e1e1e' }}>
       {/* Header */}
@@ -64,6 +106,7 @@ export function EditorPanel({ value, onChange, onRun, isRunning }: Props) {
           theme="vs-dark"
           value={value}
           onChange={(v) => onChange(v ?? '')}
+          onMount={handleMount}
           options={{
             fontSize: 14,
             fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace",

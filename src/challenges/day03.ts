@@ -86,6 +86,14 @@ export const day03: Challenge = {
   return null;
 }`,
   functionName: 'solve',
+  typeDeclarations: `
+declare function solve(
+  west: number,
+  south: number,
+  east: number,
+  north: number
+): { type: "Feature"; geometry: { type: "Polygon"; coordinates: [number, number][][] }; properties: Record<string, unknown> } | null;
+`,
   tests: [
     {
       name: 'type が "Feature"',

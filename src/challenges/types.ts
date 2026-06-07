@@ -21,6 +21,8 @@ export type Challenge = {
   description: string; // HTML string
   starterCode: string;
   functionName: string;
+  /** TypeScript declarations injected into Monaco for live type checking */
+  typeDeclarations: string;
   tests: TestCase[];
   setupMap: (map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) => void;
   mapOptions: { center: [number, number]; zoom: number };

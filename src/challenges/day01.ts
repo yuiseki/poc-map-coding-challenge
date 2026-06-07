@@ -102,6 +102,12 @@ export const day01: Challenge = {
   return null;
 }`,
   functionName: 'solve',
+  typeDeclarations: `
+declare function solve(
+  longitude: number,
+  latitude: number
+): { type: "Feature"; geometry: { type: "Point"; coordinates: [number, number] }; properties: Record<string, unknown> } | null;
+`,
   tests: [
     {
       name: '東京駅を Point として返す',

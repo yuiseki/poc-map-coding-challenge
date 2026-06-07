@@ -161,6 +161,16 @@ const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
   return null;
 }`,
   functionName: 'solve',
+  typeDeclarations: `
+interface Facility {
+  name: string;
+  location: [number, number]; // [longitude, latitude]
+}
+declare function solve(
+  currentLocation: [number, number],
+  facilities: Facility[]
+): string;
+`,
   tests: [
     {
       name: '銀座付近から最も近いのは東京タワー',

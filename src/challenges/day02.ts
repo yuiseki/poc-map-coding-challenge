@@ -98,6 +98,11 @@ export const day02: Challenge = {
   return null;
 }`,
   functionName: 'solve',
+  typeDeclarations: `
+declare function solve(
+  coordinates: [number, number][]
+): { type: "Feature"; geometry: { type: "LineString"; coordinates: [number, number][] }; properties: Record<string, unknown> } | null;
+`,
   tests: [
     {
       name: '2点の LineString',

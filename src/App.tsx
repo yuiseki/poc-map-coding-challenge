@@ -152,6 +152,7 @@ export function App() {
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
           <div style={{ flex: '0 0 50%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
             <EditorPanel
+              typeDeclarations={challenge.typeDeclarations}
               value={codes[currentId] ?? ''}
               onChange={(v) => setCodes((prev) => {
                 const next = { ...prev, [currentId]: v };
