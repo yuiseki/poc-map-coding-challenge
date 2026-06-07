@@ -2,193 +2,206 @@ import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { MAP_ANIM_DURATION_MS } from './constants';
 
-// Tokyo bounding box polygon
-const TOKYO_BBOX: [number, number][] = [
-  [139.6, 35.6], [139.8, 35.6], [139.8, 35.8], [139.6, 35.8],
+type Facility = { name: string; location: [number, number] };
+
+const FACILITIES: Facility[] = [
+  { name: '東京タワー',   location: [139.7454, 35.6586] },
+  { name: 'スカイツリー', location: [139.8107, 35.7101] },
+  { name: '新宿御苑',     location: [139.7100, 35.6851] },
+  { name: '上野動物園',   location: [139.7714, 35.7148] },
+  { name: '浅草寺',       location: [139.7966, 35.7147] },
 ];
 
-// Triangle (mapped to actual geographic coordinates near null island for display)
-// Using lat/lon as abstract 2D coordinates — they display near equator/meridian
-const TRIANGLE: [number, number][] = [[0, 0], [10, 0], [5, 10]];
-
-// L-shape polygon
-const L_SHAPE: [number, number][] = [
-  [0, 0], [4, 0], [4, 2], [2, 2], [2, 4], [0, 4],
+// Each entry corresponds to one test case (null = skip flyTo)
+const SCENARIOS: ({ loc: [number, number]; label: string; facilities: Facility[]; expected: string } | null)[] = [
+  { loc: [139.7530, 35.6867], label: '📍銀座付近',    facilities: FACILITIES,                                         expected: '東京タワー' },
+  { loc: [139.7980, 35.7140], label: '📍浅草寺の隣',  facilities: FACILITIES,                                         expected: '浅草寺' },
+  null, // single-facility edge case — no good map view
+  { loc: [139.7720, 35.7150], label: '📍上野付近',    facilities: FACILITIES,                                         expected: '上野動物園' },
 ];
-
-const SCENARIOS: {
-  point: [number, number];
-  polygon: [number, number][];
-  expected: boolean;
-  label: string;
-  center: [number, number];
-  zoom: number;
-}[] = [
-  { point: [139.7, 35.7], polygon: TOKYO_BBOX, expected: true,  label: '東京駅 → bbox 内側',   center: [139.7, 35.7], zoom: 9 },
-  { point: [135.5, 34.7], polygon: TOKYO_BBOX, expected: false, label: '大阪 → bbox 外側',     center: [137.5, 35.2], zoom: 6 },
-  { point: [5, 3],        polygon: TRIANGLE,   expected: true,  label: '三角形の内側',          center: [5, 4.5],      zoom: 4 },
-  { point: [9, 5],        polygon: TRIANGLE,   expected: false, label: '三角形の外側（右）',    center: [5, 4.5],      zoom: 4 },
-  { point: [1, 3],        polygon: L_SHAPE,    expected: true,  label: 'L字型の内側',           center: [2, 2],        zoom: 4 },
-];
-
-function toGeoJsonRing(poly: [number, number][]): [number, number][] {
-  const ring = [...poly];
-  // Ensure closed
-  if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
-    ring.push(ring[0]);
-  }
-  return ring;
-}
 
 function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
-  const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
-  const { point, polygon, expected, label, center, zoom } = SCENARIOS[idx];
+  // Which scenario to display: show the most recently revealed one
+  const scenarioIdx = Math.max(0, revealedCount - 1);
+  const scenario = SCENARIOS[Math.min(scenarioIdx, SCENARIOS.length - 1)];
+  if (!scenario) return;
 
-  map.flyTo({ center, zoom, duration: MAP_ANIM_DURATION_MS });
+  const { loc, label, facilities, expected } = scenario;
 
-  // Compute user's result
-  let result: boolean | null = null;
-  let ok = false;
+  // Run user function to find nearest
+  let found: string | null = null;
   if (userFn) {
-    try {
-      const r = userFn(point, polygon);
-      if (typeof r === 'boolean') {
-        result = r;
-        ok = r === expected;
-      }
-    } catch { /* ignore */ }
+    try { found = userFn(loc, facilities) as string; } catch { /* ignore */ }
   }
+  const correct = found === expected;
 
-  const fillColor = result !== null ? (ok ? '#22c55e' : '#ef4444') : '#f59e0b';
-  const lineColor = result !== null ? (ok ? '#22c55e' : '#ef4444') : '#f59e0b';
-  const pointColor = result !== null ? (ok ? '#22c55e' : '#ef4444') : '#4f8ef7';
+  // fitBounds to contain both current location and all facilities
+  const allCoords: [number, number][] = [loc, ...facilities.map((f) => f.location)];
+  const lons = allCoords.map((c) => c[0]);
+  const lats = allCoords.map((c) => c[1]);
+  map.fitBounds(
+    [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+    { padding: { top: 60, bottom: 60, left: 60, right: 300 }, duration: MAP_ANIM_DURATION_MS, maxZoom: 14 }
+  );
 
-  // Polygon
-  map.addSource('challenge-polygon', {
+  // Facilities
+  map.addSource('challenge-facilities', {
     type: 'geojson',
     data: {
-      type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [toGeoJsonRing(polygon)] },
-      properties: {},
+      type: 'FeatureCollection',
+      features: facilities.map((f) => {
+        let color = '#94a3b8';   // gray = not yet run
+        let radius = 7;
+        if (userFn) {
+          if (f.name === found) {
+            color = correct ? '#22c55e' : '#ef4444';
+            radius = 12;
+          } else if (f.name === expected && !correct) {
+            color = '#f59e0b'; // should have been this one
+          }
+        }
+        return {
+          type: 'Feature',
+          properties: { name: f.name, color, radius },
+          geometry: { type: 'Point', coordinates: f.location },
+        };
+      }),
     },
   });
   map.addLayer({
-    id: 'challenge-polygon-fill',
-    type: 'fill',
-    source: 'challenge-polygon',
-    paint: { 'fill-color': fillColor, 'fill-opacity': 0.15 },
-  });
-  map.addLayer({
-    id: 'challenge-polygon-line',
-    type: 'line',
-    source: 'challenge-polygon',
-    paint: { 'line-color': lineColor, 'line-width': 2.5 },
-  });
-
-  // Test point
-  const resultText = result !== null
-    ? `${result ? 'true ✓' : 'false ✗'}  (期待: ${expected ? 'true' : 'false'})`
-    : `期待: ${expected ? 'true' : 'false'}`;
-
-  map.addSource('challenge-point', {
-    type: 'geojson',
-    data: {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: point },
-      properties: { label: `${label}\n${resultText}` },
-    },
-  });
-  map.addLayer({
-    id: 'challenge-point',
+    id: 'challenge-facilities',
     type: 'circle',
-    source: 'challenge-point',
-    paint: { 'circle-radius': 10, 'circle-color': pointColor, 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' },
+    source: 'challenge-facilities',
+    paint: {
+      'circle-radius': ['get', 'radius'],
+      'circle-color': ['get', 'color'],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff',
+    },
   });
   map.addLayer({
-    id: 'challenge-point-label',
+    id: 'challenge-facility-labels',
     type: 'symbol',
-    source: 'challenge-point',
-    layout: { 'text-field': ['get', 'label'], 'text-size': 12, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+    source: 'challenge-facilities',
+    layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.5], 'text-anchor': 'top' },
     paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
   });
+
+  // Current location pin
+  map.addSource('challenge-current', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'Point', coordinates: loc }, properties: { label } },
+  });
+  map.addLayer({
+    id: 'challenge-current',
+    type: 'circle',
+    source: 'challenge-current',
+    paint: { 'circle-radius': 10, 'circle-color': '#ef4444', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' },
+  });
+  map.addLayer({
+    id: 'challenge-current-label',
+    type: 'symbol',
+    source: 'challenge-current',
+    layout: { 'text-field': ['get', 'label'], 'text-size': 13, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+    paint: { 'text-color': '#ef4444', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
+  });
+
+  // Line to found nearest
+  if (found) {
+    const target = facilities.find((f) => f.name === found);
+    if (target) {
+      map.addSource('challenge-line', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [loc, target.location] }, properties: {} },
+      });
+      map.addLayer({
+        id: 'challenge-line',
+        type: 'line',
+        source: 'challenge-line',
+        paint: { 'line-color': correct ? '#22c55e' : '#ef4444', 'line-width': 2.5, 'line-dasharray': [4, 2] },
+      });
+    }
+  }
 }
 
 export const day08: Challenge = {
   id: '08',
-  title: 'Point in Polygon',
-  difficulty: 'Hard',
+  title: 'Nearest Point',
+  difficulty: 'Easy',
   description: `
-<h2>Day 08: Point in Polygon</h2>
-<p>ある点が多角形の<strong>内側にあるかどうか</strong>を判定してください。</p>
-<h3>レイキャスティング法</h3>
-<p>点から右方向へ水平レイを飛ばし、ポリゴンの辺と交差する回数を数えます。<br>
-交差回数が<strong>奇数 → 内側</strong>、<strong>偶数 → 外側</strong>です。</p>
-<pre>for 各辺 (頂点 i と 頂点 j のペア):
-  レイがこの辺と交差するか？
-    → Y 座標が点を挟んでいる かつ
-       交差点の X 座標が点より右にある
-  交差するたびに inside を反転（true ↔ false）
-return inside</pre>
-<p style="color:#94a3b8;font-size:12px">💡 辺のループ: <code>i = 0..n-1</code>、<code>j</code> は <code>i</code> の一つ前の頂点（最後の辺は頂点 n-1 と頂点 0 をつなぐ）</p>
+<h2>Day 08: Nearest Point</h2>
+<p>現在地から最も近い施設の <strong>name</strong> を返してください。</p>
+<h3>距離の計算</h3>
+<p>簡易計算として、ユークリッド距離（座標差の二乗和）で比較してかまいません。<br>
+正確さよりも「一番近いものを正しく選ぶ」ことが目的です。</p>
+<pre>// ⚠️ JavaScript で二乗は ^ ではなく ** または掛け算
+const dx = lon2 - lon1;
+const dy = lat2 - lat1;
+const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
+<p style="color:#ef4444;font-size:12px">⚠️ <code>^</code> は JavaScript ではビット XOR です。べき乗には <code>**</code> を使ってください。</p>
 <h3>例</h3>
-<pre>solve([139.7, 35.7], [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]])
-→ true（東京周辺の矩形の内側）</pre>
+<pre>solve(
+  [139.7530, 35.6867],  // 現在地（銀座付近）
+  [
+    { name: "東京タワー",   location: [139.7454, 35.6586] },
+    { name: "スカイツリー", location: [139.8107, 35.7101] },
+    ...
+  ]
+)
+→ "東京タワー"</pre>
 <h3>制約</h3>
 <ul>
-  <li>polygon は頂点の配列（閉じていても閉じていなくても可）</li>
-  <li>自己交差しない単純な多角形</li>
-  <li>境界上の点はテストに含まれない</li>
+  <li>施設は必ず 1 件以上</li>
+  <li>戻り値は施設の <code>name</code>（文字列）</li>
 </ul>`,
-  starterCode: `function solve(point, polygon) {
-  // point: [longitude, latitude]
-  // polygon: [number, number][]  (頂点の配列)
-  // 内側なら true、外側なら false を返してください
-  return false;
+  starterCode: `function solve(currentLocation, facilities) {
+  // currentLocation: [longitude, latitude]
+  // facilities: [{ name: string, location: [longitude, latitude] }]
+  // 最も近い施設の name を返してください
+  return null;
 }`,
   functionName: 'solve',
   typeDeclarations: `
+interface Facility {
+  name: string;
+  location: [number, number]; // [longitude, latitude]
+}
 declare function solve(
-  point: [number, number],    // [longitude, latitude]
-  polygon: [number, number][] // 頂点の配列
-): boolean;
+  currentLocation: [number, number],
+  facilities: Facility[]
+): string;
 `,
   tests: [
     {
-      name: '東京駅は東京bbox内側 → true',
+      name: '銀座付近から最も近いのは東京タワー',
       run: (fn) => {
-        const r = fn([139.7, 35.7], TOKYO_BBOX);
-        if (r !== true) throw new Error(`期待値: true, 実際: ${r}`);
+        const result = fn([139.7530, 35.6867], FACILITIES);
+        if (result !== '東京タワー') throw new Error(`期待値: "東京タワー", 実際: "${result}"`);
       },
     },
     {
-      name: '大阪は東京bbox外側 → false',
+      name: '浅草寺の隣から最も近いのは浅草寺',
       run: (fn) => {
-        const r = fn([135.5, 34.7], TOKYO_BBOX);
-        if (r !== false) throw new Error(`期待値: false, 実際: ${r}`);
+        const result = fn([139.7980, 35.7140], FACILITIES);
+        if (result !== '浅草寺') throw new Error(`期待値: "浅草寺", 実際: "${result}"`);
       },
     },
     {
-      name: '三角形の内側 → true',
+      name: '施設が 1 件の場合はその施設を返す',
       run: (fn) => {
-        const r = fn([5, 3], TRIANGLE);
-        if (r !== true) throw new Error(`期待値: true, 実際: ${r}`);
+        const single = [{ name: 'テスト施設', location: [135.0, 35.0] as [number, number] }];
+        const result = fn([139.0, 36.0], single);
+        if (result !== 'テスト施設') throw new Error(`期待値: "テスト施設", 実際: "${result}"`);
       },
     },
     {
-      name: '三角形の外側（右） → false',
+      name: '上野動物園の隣から最も近いのは上野動物園',
       run: (fn) => {
-        const r = fn([9, 5], TRIANGLE);
-        if (r !== false) throw new Error(`期待値: false, 実際: ${r}`);
-      },
-    },
-    {
-      name: 'L字型ポリゴンの内側 → true',
-      run: (fn) => {
-        const r = fn([1, 3], L_SHAPE);
-        if (r !== true) throw new Error(`期待値: true, 実際: ${r}`);
+        const result = fn([139.7720, 35.7150], FACILITIES);
+        if (result !== '上野動物園') throw new Error(`期待値: "上野動物園", 実際: "${result}"`);
       },
     },
   ],
   setupMap,
-  mapOptions: { center: [139.7, 35.7], zoom: 9 },
+  mapOptions: { center: [139.77, 35.69], zoom: 12 },
 };

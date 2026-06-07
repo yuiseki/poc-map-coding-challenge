@@ -64,7 +64,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
 export const day02: Challenge = {
   id: '02',
   title: 'Lines',
-  difficulty: 'Easy',
+  difficulty: 'Tutorial',
   description: `
 <h2>Day 02: Lines</h2>
 <p>座標の配列を受け取り、<strong>GeoJSON LineString Feature</strong> を返してください。</p>

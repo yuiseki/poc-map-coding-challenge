@@ -55,7 +55,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
 export const day03: Challenge = {
   id: '03',
   title: 'Polygons',
-  difficulty: 'Easy',
+  difficulty: 'Tutorial',
   description: `
 <h2>Day 03: Polygons</h2>
 <p>バウンディングボックス（bbox）を受け取り、<strong>GeoJSON Polygon Feature</strong>（矩形）を返してください。</p>

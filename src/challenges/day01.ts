@@ -72,7 +72,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
 export const day01: Challenge = {
   id: '01',
   title: 'Points',
-  difficulty: 'Easy',
+  difficulty: 'Tutorial',
   description: `
 <h2>Day 01: Points</h2>
 <p>指定された経度・緯度の地点を <strong>GeoJSON Point Feature</strong> として返してください。</p>

@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 
-export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+export type Difficulty = 'Tutorial' | 'Easy' | 'Medium' | 'Hard';
 
 export type TestCase = {
   name: string;
