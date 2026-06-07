@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { challenges } from './challenges';
 import type { TestResult } from './challenges/types';
+import { REVEAL_DELAY_MS } from './challenges/constants';
 import { Sidebar } from './components/Sidebar';
 import { ProblemPanel } from './components/ProblemPanel';
 import { EditorPanel } from './components/EditorPanel';
@@ -9,7 +10,6 @@ import { MapPanel } from './components/MapPanel';
 type CodeMap = Record<string, string>;
 
 const LS_KEY = 'map-coding-challenge:codes';
-const REVEAL_DELAY_MS = 260; // ms per test reveal
 
 function loadCodes(): CodeMap {
   const defaults = Object.fromEntries(challenges.map((c) => [c.id, c.starterCode]));
