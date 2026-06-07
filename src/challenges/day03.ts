@@ -1,7 +1,6 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { Feature, Polygon } from 'geojson';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 // 5 regions, one per test — map flies around the world
 const SCENARIOS: {
@@ -40,11 +39,11 @@ function checkPolygon(
 }
 
 function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
-  const ran = isFinite(revealedCount) && revealedCount >= 0;
-  const idx = Math.min(Math.max(0, (ran ? revealedCount : 0) - 1), SCENARIOS.length - 1);
-  const scene = SCENARIOS[idx];
+  const ran = isFinite(revealedCount) && revealedCount > 0;
+  const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
+  const scene = ran ? SCENARIOS[idx] : SCENARIOS[0];
 
-  map.fitBounds(scene.camera, { padding: 60, duration: MAP_ANIM_DURATION_MS });
+  map.fitBounds(scene.camera, { padding: 60, speed: 0.7 });
 
   const { west: w, south: s, east: e, north: n } = scene;
   const expectedRing: [number, number][] = [[w,s],[e,s],[e,n],[w,n],[w,s]];
