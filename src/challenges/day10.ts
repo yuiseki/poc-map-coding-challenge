@@ -38,7 +38,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   // Always show the geographic Japan route on the map
   if (revealedCount !== 0) map.fitBounds(
     [[129.5, 33.0], [140.5, 36.5]],
-    { padding: { top: 60, bottom: 60, left: 60, right: 280 }, speed: 0.8 }
+    { padding: { top: 60, bottom: 60, left: 60, right: 280 }, speed: 2.0 }
   );
 
   const coords = DEMO_ROUTE.map((p) => p.coord);

@@ -31,10 +31,10 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     const clampLat = (l: number) => Math.max(-85, Math.min(85, l));
     if (revealedCount !== 0) map.fitBounds(
       [[Math.min(...lons), clampLat(Math.min(...lats))], [Math.max(...lons), clampLat(Math.max(...lats))]],
-      { padding: { top: 80, bottom: 80, left: 80, right: 320 }, speed: 0.6, maxZoom: 8 }
+      { padding: { top: 80, bottom: 80, left: 80, right: 320 }, speed: 2.0, maxZoom: 8 }
     );
   } else {
-    if (revealedCount !== 0) map.flyTo({ center: from, zoom: 8, speed: 0.8 });
+    if (revealedCount !== 0) map.flyTo({ center: from, zoom: 8, speed: 2.0 });
   }
 
   // Compute user's result

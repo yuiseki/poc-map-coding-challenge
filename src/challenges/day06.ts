@@ -33,7 +33,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     } catch { /* ignore */ }
   }
 
-  if (revealedCount !== 0) map.flyTo({ center: [139.725, 35.69], zoom: 12, speed: 1.0 });
+  if (revealedCount !== 0) map.flyTo({ center: [139.725, 35.69], zoom: 12, speed: 2.0 });
 
   map.addSource('challenge-shops', {
     type: 'geojson',

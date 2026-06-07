@@ -33,7 +33,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const { ring, label, center, zoom } = SCENARIOS[idx];
 
-  if (revealedCount !== 0) map.flyTo({ center, zoom, speed: 0.8 });
+  if (revealedCount !== 0) map.flyTo({ center, zoom, speed: 2.0 });
 
   const expected = shoelaceArea(ring);
 

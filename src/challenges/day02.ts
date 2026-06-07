@@ -83,7 +83,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const scenario = ran ? SCENARIOS[idx] : SCENARIOS[1]; // default: full ROUTE view
 
-  if (revealedCount !== 0) map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, speed: 0.8 });
+  if (revealedCount !== 0) map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, speed: 2.0 });
 
   let lineResult: Feature<LineString> | null = null;
   let ok = false;

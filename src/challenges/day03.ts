@@ -43,7 +43,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const scene = ran ? SCENARIOS[idx] : SCENARIOS[0];
 
-  map.fitBounds(scene.camera, { padding: 60, speed: 0.7 });
+  map.fitBounds(scene.camera, { padding: 60, speed: 2.0 });
 
   const { west: w, south: s, east: e, north: n } = scene;
   const expectedRing: [number, number][] = [[w,s],[e,s],[e,n],[w,n],[w,s]];

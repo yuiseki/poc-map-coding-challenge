@@ -40,7 +40,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const lats = allCoords.map((c) => c[1]);
   if (revealedCount !== 0) map.fitBounds(
     [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-    { padding: { top: 60, bottom: 60, left: 60, right: 300 }, speed: 0.8, maxZoom: 14 }
+    { padding: { top: 60, bottom: 60, left: 60, right: 300 }, speed: 2.0, maxZoom: 14 }
   );
 
   // Facilities
