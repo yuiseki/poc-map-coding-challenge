@@ -34,8 +34,14 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   }
   const correct = found === expected;
 
-  // FlyTo current location when scenario changes
-  map.flyTo({ center: loc, zoom: 13, speed: 1.2 });
+  // fitBounds to contain both current location and all facilities
+  const allCoords: [number, number][] = [loc, ...facilities.map((f) => f.location)];
+  const lons = allCoords.map((c) => c[0]);
+  const lats = allCoords.map((c) => c[1]);
+  map.fitBounds(
+    [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+    { padding: 60, duration: 800, maxZoom: 14 }
+  );
 
   // Facilities
   map.addSource('challenge-facilities', {
