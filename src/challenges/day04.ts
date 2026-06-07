@@ -11,28 +11,54 @@ const FACILITIES: Facility[] = [
   { name: '浅草寺',       location: [139.7966, 35.7147] },
 ];
 
-const CURRENT_LOCATION: [number, number] = [139.7530, 35.6867]; // 銀座付近
+// Each entry corresponds to one test case (null = skip flyTo)
+const SCENARIOS: ({ loc: [number, number]; label: string; facilities: Facility[]; expected: string } | null)[] = [
+  { loc: [139.7530, 35.6867], label: '📍銀座付近',    facilities: FACILITIES,                                         expected: '東京タワー' },
+  { loc: [139.7980, 35.7140], label: '📍浅草寺の隣',  facilities: FACILITIES,                                         expected: '浅草寺' },
+  null, // single-facility edge case — no good map view
+  { loc: [139.7720, 35.7150], label: '📍上野付近',    facilities: FACILITIES,                                         expected: '上野動物園' },
+];
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) {
-  let nearestName: string | null = null;
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
+  // Which scenario to display: show the most recently revealed one
+  const scenarioIdx = Math.max(0, revealedCount - 1);
+  const scenario = SCENARIOS[Math.min(scenarioIdx, SCENARIOS.length - 1)];
+  if (!scenario) return;
+
+  const { loc, label, facilities, expected } = scenario;
+
+  // Run user function to find nearest
+  let found: string | null = null;
   if (userFn) {
-    try { nearestName = userFn(CURRENT_LOCATION, FACILITIES) as string; } catch { /* ignore */ }
+    try { found = userFn(loc, facilities) as string; } catch { /* ignore */ }
   }
+  const correct = found === expected;
+
+  // FlyTo current location when scenario changes
+  map.flyTo({ center: loc, zoom: 13, speed: 1.2 });
 
   // Facilities
   map.addSource('challenge-facilities', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
-      features: FACILITIES.map((f) => ({
-        type: 'Feature',
-        properties: {
-          name: f.name,
-          color: nearestName === f.name ? '#22c55e' : '#4f8ef7',
-          radius: nearestName === f.name ? 10 : 7,
-        },
-        geometry: { type: 'Point', coordinates: f.location },
-      })),
+      features: facilities.map((f) => {
+        let color = '#94a3b8';   // gray = not yet run
+        let radius = 7;
+        if (userFn) {
+          if (f.name === found) {
+            color = correct ? '#22c55e' : '#ef4444';
+            radius = 12;
+          } else if (f.name === expected && !correct) {
+            color = '#f59e0b'; // should have been this one
+          }
+        }
+        return {
+          type: 'Feature',
+          properties: { name: f.name, color, radius },
+          geometry: { type: 'Point', coordinates: f.location },
+        };
+      }),
     },
   });
   map.addLayer({
@@ -54,10 +80,10 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
   });
 
-  // Current location
+  // Current location pin
   map.addSource('challenge-current', {
     type: 'geojson',
-    data: { type: 'Feature', geometry: { type: 'Point', coordinates: CURRENT_LOCATION }, properties: { label: '現在地' } },
+    data: { type: 'Feature', geometry: { type: 'Point', coordinates: loc }, properties: { label } },
   });
   map.addLayer({
     id: 'challenge-current',
@@ -69,27 +95,23 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     id: 'challenge-current-label',
     type: 'symbol',
     source: 'challenge-current',
-    layout: { 'text-field': '📍現在地', 'text-size': 13, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
+    layout: { 'text-field': ['get', 'label'], 'text-size': 13, 'text-offset': [0, 1.6], 'text-anchor': 'top' },
     paint: { 'text-color': '#ef4444', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
   });
 
-  // Line to nearest
-  if (nearestName) {
-    const nearest = FACILITIES.find((f) => f.name === nearestName);
-    if (nearest) {
+  // Line to found nearest
+  if (found) {
+    const target = facilities.find((f) => f.name === found);
+    if (target) {
       map.addSource('challenge-line', {
         type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: [CURRENT_LOCATION, nearest.location] },
-          properties: {},
-        },
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [loc, target.location] }, properties: {} },
       });
       map.addLayer({
         id: 'challenge-line',
         type: 'line',
         source: 'challenge-line',
-        paint: { 'line-color': '#22c55e', 'line-width': 2, 'line-dasharray': [4, 2] },
+        paint: { 'line-color': correct ? '#22c55e' : '#ef4444', 'line-width': 2.5, 'line-dasharray': [4, 2] },
       });
     }
   }
@@ -119,7 +141,7 @@ const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
     ...
   ]
 )
-→ "東京タワー"  // 最も近い施設の name</pre>
+→ "東京タワー"</pre>
 <h3>制約</h3>
 <ul>
   <li>施設は必ず 1 件以上</li>
@@ -136,15 +158,14 @@ const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
     {
       name: '銀座付近から最も近いのは東京タワー',
       run: (fn) => {
-        const result = fn(CURRENT_LOCATION, FACILITIES);
+        const result = fn([139.7530, 35.6867], FACILITIES);
         if (result !== '東京タワー') throw new Error(`期待値: "東京タワー", 実際: "${result}"`);
       },
     },
     {
       name: '浅草寺の隣から最も近いのは浅草寺',
       run: (fn) => {
-        const near: [number, number] = [139.7980, 35.7140];
-        const result = fn(near, FACILITIES);
+        const result = fn([139.7980, 35.7140], FACILITIES);
         if (result !== '浅草寺') throw new Error(`期待値: "浅草寺", 実際: "${result}"`);
       },
     },
@@ -159,8 +180,7 @@ const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
     {
       name: '上野動物園の隣から最も近いのは上野動物園',
       run: (fn) => {
-        const near: [number, number] = [139.7720, 35.7150];
-        const result = fn(near, FACILITIES);
+        const result = fn([139.7720, 35.7150], FACILITIES);
         if (result !== '上野動物園') throw new Error(`期待値: "上野動物園", 実際: "${result}"`);
       },
     },

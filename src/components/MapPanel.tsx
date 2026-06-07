@@ -47,23 +47,24 @@ export function MapPanel({ challenge, testResults, consoleLogs, revealedCount, r
 
     map.on('load', () => {
       removeLayers(map);
-      challenge.setupMap(map, getUserFn());
+      challenge.setupMap(map, getUserFn(), revealedCount);
     });
 
     return () => { map.remove(); mapRef.current = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challenge.id]);
 
-  // Re-run map setup when runId changes (without re-initializing the map)
+  // Re-run map setup when runId or revealedCount changes
   useEffect(() => {
-    if (runIdRef.current === runId) return;
+    const countChanged = runIdRef.current !== runId;
     runIdRef.current = runId;
+    if (!countChanged && revealedCount === Infinity) return;
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     removeLayers(map);
-    challenge.setupMap(map, getUserFn());
+    challenge.setupMap(map, getUserFn(), revealedCount);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]);
+  }, [runId, revealedCount]);
 
   const visible = testResults ? testResults.slice(0, revealedCount) : [];
   const pass = visible.filter((r) => r.pass).length;

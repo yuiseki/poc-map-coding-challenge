@@ -9,7 +9,7 @@ const ROUTE: [number, number][] = [
   [135.4959, 34.7024], // 大阪
 ];
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) {
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, _revealedCount: number) {
   let lineCoords: [number, number][] | null = null;
   if (userFn) {
     try {

@@ -4,7 +4,7 @@ import type { Feature, Polygon } from 'geojson';
 
 const BBOX = { west: 130, south: 31, east: 146, north: 45 }; // 日本全体の大まかなbbox
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) {
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, _revealedCount: number) {
   // Expected bbox outline (dashed)
   const expectedRing: [number, number][] = [
     [BBOX.west, BBOX.south], [BBOX.east, BBOX.south],

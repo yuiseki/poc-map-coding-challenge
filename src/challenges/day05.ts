@@ -5,27 +5,41 @@ import type { Feature, Point } from 'geojson';
 type ShopFeature = Feature<Point, { name: string; category: string }>;
 
 const SHOPS: ShopFeature[] = [
-  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.70, 35.69] }, properties: { name: '新宿のカフェ',   category: 'cafe' } },
-  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.72, 35.68] }, properties: { name: '渋谷のカフェ',   category: 'cafe' } },
-  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.74, 35.67] }, properties: { name: '品川のカフェ',   category: 'cafe' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.70, 35.69] }, properties: { name: '新宿のカフェ',      category: 'cafe' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.72, 35.68] }, properties: { name: '渋谷のカフェ',      category: 'cafe' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.74, 35.67] }, properties: { name: '品川のカフェ',      category: 'cafe' } },
   { type: 'Feature', geometry: { type: 'Point', coordinates: [139.71, 35.70] }, properties: { name: '代々木のレストラン', category: 'restaurant' } },
-  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.73, 35.69] }, properties: { name: '原宿のレストラン', category: 'restaurant' } },
-  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.75, 35.71] }, properties: { name: '表参道のカフェ', category: 'cafe' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.73, 35.69] }, properties: { name: '原宿のレストラン',   category: 'restaurant' } },
+  { type: 'Feature', geometry: { type: 'Point', coordinates: [139.75, 35.71] }, properties: { name: '表参道のカフェ',    category: 'cafe' } },
 ];
 
-// 新宿〜渋谷エリアのbbox
 const BBOX: [number, number, number, number] = [139.68, 35.67, 139.73, 35.71];
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) {
+// Per-test filter scenarios for map animation
+const SCENARIOS: { category: string; label: string }[] = [
+  { category: 'cafe',       label: 'cafe を bbox 内でフィルタ' },
+  { category: 'cafe',       label: 'bbox 外の cafe は除外' },
+  { category: 'cafe',       label: 'restaurant は除外' },
+  { category: 'restaurant', label: 'restaurant を bbox 内でフィルタ' },
+  { category: 'hotel',      label: 'hotel → 空配列' },
+];
+
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
+  const scenarioIdx = Math.max(0, revealedCount - 1);
+  const scenario = SCENARIOS[Math.min(scenarioIdx, SCENARIOS.length - 1)];
+  const { category } = scenario;
+
+  // Run user's filter for this scenario's category
   let matched: Set<string> = new Set();
   if (userFn) {
     try {
-      const result = userFn(SHOPS, 'category', 'cafe', BBOX) as ShopFeature[];
-      if (Array.isArray(result)) {
-        matched = new Set(result.map((f) => f.properties?.name));
-      }
+      const result = userFn(SHOPS, 'category', category, BBOX) as ShopFeature[];
+      if (Array.isArray(result)) matched = new Set(result.map((f) => f.properties?.name));
     } catch { /* ignore */ }
   }
+
+  // Fly to area
+  map.flyTo({ center: [139.715, 35.69], zoom: 12.5, speed: 1.0 });
 
   // bbox rectangle
   const ring: [number, number][] = [
@@ -35,8 +49,10 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     type: 'geojson',
     data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] }, properties: {} },
   });
-  map.addLayer({ id: 'challenge-bbox-fill', type: 'fill', source: 'challenge-bbox', paint: { 'fill-color': '#4f8ef7', 'fill-opacity': 0.08 } });
-  map.addLayer({ id: 'challenge-bbox-line', type: 'line', source: 'challenge-bbox', paint: { 'line-color': '#4f8ef7', 'line-width': 1.5, 'line-dasharray': [4, 2] } });
+  map.addLayer({ id: 'challenge-bbox-fill', type: 'fill', source: 'challenge-bbox',
+    paint: { 'fill-color': '#4f8ef7', 'fill-opacity': 0.08 } });
+  map.addLayer({ id: 'challenge-bbox-line', type: 'line', source: 'challenge-bbox',
+    paint: { 'line-color': '#4f8ef7', 'line-width': 2, 'line-dasharray': [4, 2] } });
 
   // Shops
   map.addSource('challenge-shops', {
@@ -44,15 +60,29 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     data: {
       type: 'FeatureCollection',
       features: SHOPS.map((s) => {
-        const isMatched = matched.size > 0 && matched.has(s.properties.name);
-        const isPending = matched.size === 0;
+        const lon = (s.geometry as Point).coordinates[0];
+        const lat = (s.geometry as Point).coordinates[1];
+        const inBbox = lon >= BBOX[0] && lon <= BBOX[2] && lat >= BBOX[1] && lat <= BBOX[3];
+        const matchesCat = s.properties.category === category;
+
+        let color = '#94a3b8';  // default gray
+        let radius = 7;
+
+        if (userFn) {
+          if (matched.has(s.properties.name)) {
+            color = '#22c55e'; radius = 10; // matched ✅
+          } else if (matchesCat && inBbox) {
+            color = '#ef4444'; // should match but didn't
+          } else {
+            color = '#3a3a5a'; // correctly excluded
+          }
+        } else if (matchesCat && inBbox) {
+          color = '#f59e0b'; // expected to match
+        }
+
         return {
           ...s,
-          properties: {
-            ...s.properties,
-            color: isPending ? '#94a3b8' : isMatched ? '#22c55e' : '#ef4444',
-            radius: isMatched ? 9 : 6,
-          },
+          properties: { ...s.properties, color, radius },
         };
       }),
     },
@@ -61,7 +91,8 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     id: 'challenge-shops',
     type: 'circle',
     source: 'challenge-shops',
-    paint: { 'circle-radius': ['get', 'radius'], 'circle-color': ['get', 'color'], 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' },
+    paint: { 'circle-radius': ['get', 'radius'], 'circle-color': ['get', 'color'],
+             'circle-stroke-width': 2, 'circle-stroke-color': '#fff' },
   });
   map.addLayer({
     id: 'challenge-shop-labels',
@@ -69,6 +100,19 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     source: 'challenge-shops',
     layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top' },
     paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
+  });
+
+  // Category label overlay
+  map.addSource('challenge-label', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'Point', coordinates: [BBOX[0] + 0.001, BBOX[3] - 0.003] }, properties: { label: `category: "${category}"` } },
+  });
+  map.addLayer({
+    id: 'challenge-category-label',
+    type: 'symbol',
+    source: 'challenge-label',
+    layout: { 'text-field': ['get', 'label'], 'text-size': 13, 'text-anchor': 'bottom-left' },
+    paint: { 'text-color': '#f59e0b', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
   });
 }
 
@@ -91,7 +135,7 @@ export const day05: Challenge = {
 → category が "cafe" で、かつ bbox 内にある Feature だけの配列</pre>
 <h3>制約</h3>
 <ul>
-  <li>Feature の geometry は必ず <code>Point</code>（緯度経度1点）</li>
+  <li>Feature の geometry は必ず <code>Point</code></li>
   <li>bbox は <code>[west, south, east, north]</code> の順</li>
   <li>マッチしない場合は空配列 <code>[]</code> を返す</li>
 </ul>`,

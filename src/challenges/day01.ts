@@ -2,7 +2,7 @@ import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { Feature, Point } from 'geojson';
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) {
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, _revealedCount: number) {
   const targets: [number, number][] = [
     [139.7671, 35.6812], // 東京駅
     [135.4959, 34.7024], // 大阪駅

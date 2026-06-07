@@ -22,6 +22,6 @@ export type Challenge = {
   starterCode: string;
   functionName: string;
   tests: TestCase[];
-  setupMap: (map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null) => void;
+  setupMap: (map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) => void;
   mapOptions: { center: [number, number]; zoom: number };
 };
