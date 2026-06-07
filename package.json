@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "serve docs -p 3000",
     "test": "node --experimental-strip-types --test",
     "test:01": "node --experimental-strip-types --test 01/index.test.ts",
     "test:02": "node --experimental-strip-types --test 02/index.test.ts",
     "test:03": "node --experimental-strip-types --test 03/index.test.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0"
+    "@types/node": "^22.10.0",
+    "serve": "^14.2.6"
   }
 }
