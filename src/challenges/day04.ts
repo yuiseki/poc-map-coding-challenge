@@ -105,7 +105,11 @@ export const day04: Challenge = {
 <h3>距離の計算</h3>
 <p>簡易計算として、ユークリッド距離（座標差の二乗和）で比較してかまいません。<br>
 正確さよりも「一番近いものを正しく選ぶ」ことが目的です。</p>
-<pre>dist = (lon2-lon1)² + (lat2-lat1)²</pre>
+<pre>// ⚠️ JavaScript で二乗は ^ ではなく ** または掛け算
+const dx = lon2 - lon1;
+const dy = lat2 - lat1;
+const dist = dx * dx + dy * dy; // または dx**2 + dy**2</pre>
+<p style="color:#ef4444;font-size:12px">⚠️ <code>^</code> は JavaScript ではビット XOR です。べき乗には <code>**</code> を使ってください。</p>
 <h3>例</h3>
 <pre>solve(
   [139.7530, 35.6867],  // 現在地（銀座付近）
