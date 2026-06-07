@@ -45,13 +45,10 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     map.fitBounds([[128, 32], [142, 42]], { padding: 60, duration: MAP_ANIM_DURATION_MS });
   } else if (revealed >= 4) {
     // Show world view to include [0,0] and Japan
-    map.fitBounds([[-15, -5], [145, 50]], { padding: 60, duration: MAP_ANIM_DURATION_MS });
-  } else if (revealed >= 3) {
-    // Show all Japan cities
-    map.fitBounds([[128, 32], [142, 38]], { padding: 80, duration: MAP_ANIM_DURATION_MS });
+    map.fitBounds([[-15, -5], [145, 50]], { padding: 60, speed: 0.6 });
   } else {
-    // Fly to focus city
-    map.flyTo({ center: [focus.lon, focus.lat], zoom: 9, duration: MAP_ANIM_DURATION_MS });
+    // Fly to each city in sequence — use speed so short hops finish well within REVEAL_DELAY_MS
+    map.flyTo({ center: [focus.lon, focus.lat], zoom: 9, speed: 0.8 });
   }
 
   // Show targets revealed so far (+ all in default view)
