@@ -1,6 +1,5 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 const TOLERANCE_KM = 50; // Haversine 正解で ±1km 以内だが、表示は ±50km で合否判定
 
@@ -30,12 +29,12 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     const lats = [from[1], to[1]];
     // Clamp poles for fitBounds
     const clampLat = (l: number) => Math.max(-85, Math.min(85, l));
-    map.fitBounds(
+    if (revealedCount !== 0) map.fitBounds(
       [[Math.min(...lons), clampLat(Math.min(...lats))], [Math.max(...lons), clampLat(Math.max(...lats))]],
-      { padding: { top: 80, bottom: 80, left: 80, right: 320 }, duration: MAP_ANIM_DURATION_MS, maxZoom: 8 }
+      { padding: { top: 80, bottom: 80, left: 80, right: 320 }, speed: 0.6, maxZoom: 8 }
     );
   } else {
-    map.flyTo({ center: from, zoom: 8, duration: MAP_ANIM_DURATION_MS });
+    if (revealedCount !== 0) map.flyTo({ center: from, zoom: 8, speed: 0.8 });
   }
 
   // Compute user's result

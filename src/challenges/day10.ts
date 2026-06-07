@@ -1,6 +1,5 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 // Demo route for map visualization (東海道・山陽ルート)
 const DEMO_ROUTE: { name: string; coord: [number, number] }[] = [
@@ -37,9 +36,9 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
 
   // Always show the geographic Japan route on the map
-  map.fitBounds(
+  if (revealedCount !== 0) map.fitBounds(
     [[129.5, 33.0], [140.5, 36.5]],
-    { padding: { top: 60, bottom: 60, left: 60, right: 280 }, duration: MAP_ANIM_DURATION_MS }
+    { padding: { top: 60, bottom: 60, left: 60, right: 280 }, speed: 0.8 }
   );
 
   const coords = DEMO_ROUTE.map((p) => p.coord);

@@ -1,6 +1,5 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 type BBox = { west: number; south: number; east: number; north: number };
 
@@ -67,7 +66,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const { label, points, expected, center, zoom } = SCENARIOS[idx];
 
-  map.flyTo({ center, zoom, speed: 1.2, duration: MAP_ANIM_DURATION_MS });
+  if (revealedCount !== 0) map.flyTo({ center, zoom, speed: 0.8 });
 
   let result: BBox | null = null;
   if (userFn) {

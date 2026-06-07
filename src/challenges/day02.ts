@@ -1,7 +1,6 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { Feature, LineString } from 'geojson';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 const ROUTE: [number, number][] = [
   [139.7671, 35.6812], // 東京
@@ -84,7 +83,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const scenario = ran ? SCENARIOS[idx] : SCENARIOS[1]; // default: full ROUTE view
 
-  map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, duration: MAP_ANIM_DURATION_MS });
+  if (revealedCount !== 0) map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, speed: 0.8 });
 
   let lineResult: Feature<LineString> | null = null;
   let ok = false;

@@ -1,6 +1,5 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 type Facility = { name: string; location: [number, number] };
 
@@ -39,9 +38,9 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const allCoords: [number, number][] = [loc, ...facilities.map((f) => f.location)];
   const lons = allCoords.map((c) => c[0]);
   const lats = allCoords.map((c) => c[1]);
-  map.fitBounds(
+  if (revealedCount !== 0) map.fitBounds(
     [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-    { padding: { top: 60, bottom: 60, left: 60, right: 300 }, duration: MAP_ANIM_DURATION_MS, maxZoom: 14 }
+    { padding: { top: 60, bottom: 60, left: 60, right: 300 }, speed: 0.8, maxZoom: 14 }
   );
 
   // Facilities

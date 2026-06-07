@@ -1,6 +1,5 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { MAP_ANIM_DURATION_MS } from './constants';
 
 const SCENARIOS: { ring: [number, number][]; label: string; center: [number, number]; zoom: number }[] = [
   { ring: [[0,0],[4,0],[4,2],[0,2]],        label: '4×2 の矩形 → [2, 1]',     center: [2,1],    zoom: 6 },
@@ -43,7 +42,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const { ring, label, center, zoom } = SCENARIOS[idx];
 
-  map.flyTo({ center, zoom, duration: MAP_ANIM_DURATION_MS });
+  if (revealedCount !== 0) map.flyTo({ center, zoom, speed: 0.8 });
 
   const expected = polygonCentroid(ring);
 
