@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { MaplibrePreload } from '../lib/maplibre-preload';
 import type { Challenge, TestResult } from '../challenges/types';
 
 // Register pmtiles protocol once
@@ -46,6 +47,7 @@ export function MapPanel({ challenge, testResults, consoleLogs, revealedCount, r
     mapRef.current = map;
 
     map.on('load', () => {
+      new MaplibrePreload(map, { async: true, burstLimit: 200 });
       removeLayers(map);
       challenge.setupMap(map, getUserFn(), revealedCount);
     });
