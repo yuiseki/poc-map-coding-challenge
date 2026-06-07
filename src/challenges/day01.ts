@@ -1,42 +1,74 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { Feature, Point } from 'geojson';
+import { MAP_ANIM_DURATION_MS } from './constants';
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, _revealedCount: number) {
-  const targets: [number, number][] = [
-    [139.7671, 35.6812], // 東京駅
-    [135.4959, 34.7024], // 大阪駅
-    [130.4183, 33.5902], // 博多駅
-  ];
+const TARGETS: { name: string; lon: number; lat: number }[] = [
+  { name: '東京駅',  lon: 139.7671, lat: 35.6812 },
+  { name: '大阪駅',  lon: 135.4959, lat: 34.7024 },
+  { name: '博多駅',  lon: 130.4183, lat: 33.5902 },
+  { name: '[0, 0]',  lon: 0,        lat: 0        },
+];
 
-  let results: { coord: [number, number]; ok: boolean }[] = [];
-  if (userFn) {
-    results = targets.map((c) => {
-      try {
-        const f = userFn(c[0], c[1]) as Feature<Point> | null;
-        const ok =
-          f?.type === 'Feature' &&
-          f.geometry?.type === 'Point' &&
-          f.geometry.coordinates[0] === c[0] &&
-          f.geometry.coordinates[1] === c[1];
-        return { coord: c, ok: !!ok };
-      } catch {
-        return { coord: c, ok: false };
-      }
-    });
+function checkPoint(userFn: ((...args: unknown[]) => unknown), lon: number, lat: number): boolean {
+  try {
+    const f = userFn(lon, lat) as Feature<Point> | null;
+    return (
+      f?.type === 'Feature' &&
+      f.geometry?.type === 'Point' &&
+      f.geometry.coordinates[0] === lon &&
+      f.geometry.coordinates[1] === lat
+    );
+  } catch { return false; }
+}
+
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
+  // How many tests have been revealed (finite number means Run was pressed)
+  const ran = isFinite(revealedCount) && revealedCount >= 0;
+  const revealed = ran ? revealedCount : 0;
+
+  // Per-target status: 'pending' | 'pass' | 'fail'
+  const statuses = TARGETS.map((t, i) => {
+    if (!ran || !userFn || i >= revealed) return 'pending';
+    return checkPoint(userFn, t.lon, t.lat) ? 'pass' : 'fail';
+  });
+
+  const colorOf = (s: string) => s === 'pass' ? '#22c55e' : s === 'fail' ? '#ef4444' : '#f59e0b';
+  const radiusOf = (s: string) => s === 'pending' ? 8 : 11;
+
+  // Camera: fly to the most recently revealed target
+  const focusIdx = Math.min(Math.max(0, revealed - 1), TARGETS.length - 1);
+  const focus = TARGETS[focusIdx];
+
+  if (!ran) {
+    // Default: show Japan with first 3 targets
+    map.fitBounds([[128, 32], [142, 42]], { padding: 60, duration: MAP_ANIM_DURATION_MS });
+  } else if (revealed >= 4) {
+    // Show world view to include [0,0] and Japan
+    map.fitBounds([[-15, -5], [145, 50]], { padding: 60, duration: MAP_ANIM_DURATION_MS });
+  } else if (revealed >= 3) {
+    // Show all Japan cities
+    map.fitBounds([[128, 32], [142, 38]], { padding: 80, duration: MAP_ANIM_DURATION_MS });
+  } else {
+    // Fly to focus city
+    map.flyTo({ center: [focus.lon, focus.lat], zoom: 9, duration: MAP_ANIM_DURATION_MS });
   }
+
+  // Show targets revealed so far (+ all in default view)
+  const visibleTargets = !ran ? TARGETS.slice(0, 3) : TARGETS.slice(0, Math.max(1, revealed));
 
   map.addSource('challenge-targets', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
-      features: targets.map((c, i) => ({
+      features: visibleTargets.map((t, i) => ({
         type: 'Feature',
         properties: {
-          label: ['東京駅', '大阪駅', '博多駅'][i],
-          color: results.length === 0 ? '#f59e0b' : results[i].ok ? '#22c55e' : '#ef4444',
+          label: t.name,
+          color: colorOf(statuses[i]),
+          radius: radiusOf(statuses[i]),
         },
-        geometry: { type: 'Point', coordinates: c },
+        geometry: { type: 'Point', coordinates: [t.lon, t.lat] },
       })),
     },
   });
@@ -45,7 +77,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     type: 'circle',
     source: 'challenge-targets',
     paint: {
-      'circle-radius': 10,
+      'circle-radius': ['get', 'radius'],
       'circle-color': ['get', 'color'],
       'circle-stroke-width': 2,
       'circle-stroke-color': '#fff',

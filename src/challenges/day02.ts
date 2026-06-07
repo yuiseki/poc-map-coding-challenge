@@ -1,6 +1,7 @@
 import type { Challenge } from './types';
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { Feature, LineString } from 'geojson';
+import { MAP_ANIM_DURATION_MS } from './constants';
 
 const ROUTE: [number, number][] = [
   [139.7671, 35.6812], // 東京
@@ -9,25 +10,79 @@ const ROUTE: [number, number][] = [
   [135.4959, 34.7024], // 大阪
 ];
 
-function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, _revealedCount: number) {
-  let lineCoords: [number, number][] | null = null;
+const LABELS = ['東京', '長野', '名古屋', '大阪'];
+
+// Per-test scenarios: which coords to draw and what camera bounds to use
+const SCENARIOS: {
+  coords: [number, number][];
+  bounds: [[number, number], [number, number]];
+  check: (r: Feature<LineString>, coords: [number, number][]) => boolean;
+}[] = [
+  {
+    // Test 1: 2-point LineString (東京→大阪)
+    coords: [[139.7671, 35.6812], [135.4959, 34.7024]],
+    bounds: [[134, 34], [141, 36.5]],
+    check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
+                     JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
+  },
+  {
+    // Test 2: 4-point LineString (full ROUTE)
+    coords: ROUTE,
+    bounds: [[134, 34], [141, 37.5]],
+    check: (r, _c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
+                      r.geometry.coordinates.length === 4,
+  },
+  {
+    // Test 3: coordinates match exactly
+    coords: ROUTE,
+    bounds: [[134, 34], [141, 37.5]],
+    check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
+                     JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
+  },
+];
+
+function tryLine(userFn: ((...args: unknown[]) => unknown), coords: [number, number][]): Feature<LineString> | null {
+  try {
+    const r = userFn(coords) as Feature<LineString> | null;
+    if (r?.geometry?.type === 'LineString') return r;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
+  const ran = isFinite(revealedCount) && revealedCount >= 0;
+  const idx = Math.min(Math.max(0, (ran ? revealedCount : 0) - 1), SCENARIOS.length - 1);
+  const scenario = ran ? SCENARIOS[idx] : SCENARIOS[SCENARIOS.length - 1];
+
+  map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, duration: MAP_ANIM_DURATION_MS });
+
+  // Try user's function for this scenario's coords
+  let lineResult: Feature<LineString> | null = null;
+  let ok = false;
   if (userFn) {
-    try {
-      const r = userFn(ROUTE) as Feature<LineString> | null;
-      if (r?.geometry?.type === 'LineString') {
-        lineCoords = r.geometry.coordinates as [number, number][];
-      }
-    } catch { /* ignore */ }
+    lineResult = tryLine(userFn, scenario.coords);
+    if (lineResult) ok = scenario.check(lineResult, scenario.coords);
   }
 
-  // Input points
+  const lineColor = !userFn ? '#4f8ef7' : ok ? '#22c55e' : '#ef4444';
+  const pointColor = !userFn ? '#f59e0b' : ok ? '#22c55e' : '#ef4444';
+
+  // Show which points are used in this scenario
+  const usedIndices = scenario.coords === ROUTE
+    ? [0, 1, 2, 3]
+    : [0, 3]; // Tokyo + Osaka for 2-point test
+
   map.addSource('challenge-points', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
       features: ROUTE.map((c, i) => ({
         type: 'Feature',
-        properties: { label: ['東京', '長野', '名古屋', '大阪'][i] },
+        properties: {
+          label: LABELS[i],
+          color: usedIndices.includes(i) ? pointColor : '#3a3a5a',
+          radius: usedIndices.includes(i) ? 8 : 5,
+        },
         geometry: { type: 'Point', coordinates: c },
       })),
     },
@@ -36,7 +91,12 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     id: 'challenge-points',
     type: 'circle',
     source: 'challenge-points',
-    paint: { 'circle-radius': 7, 'circle-color': '#f59e0b', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' },
+    paint: {
+      'circle-radius': ['get', 'radius'],
+      'circle-color': ['get', 'color'],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff',
+    },
   });
   map.addLayer({
     id: 'challenge-point-labels',
@@ -46,17 +106,29 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     paint: { 'text-color': '#e2e8f0', 'text-halo-color': '#1a1d27', 'text-halo-width': 2 },
   });
 
-  // Result line
-  if (lineCoords) {
+  // Expected dotted guide line
+  map.addSource('challenge-expected', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: scenario.coords }, properties: {} },
+  });
+  map.addLayer({
+    id: 'challenge-expected',
+    type: 'line',
+    source: 'challenge-expected',
+    paint: { 'line-color': '#f59e0b', 'line-width': 1.5, 'line-dasharray': [4, 3], 'line-opacity': 0.6 },
+  });
+
+  // User's result line
+  if (lineResult) {
     map.addSource('challenge-line', {
       type: 'geojson',
-      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: lineCoords }, properties: {} },
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: lineResult.geometry.coordinates }, properties: {} },
     });
     map.addLayer({
       id: 'challenge-line',
       type: 'line',
       source: 'challenge-line',
-      paint: { 'line-color': '#22c55e', 'line-width': 3 },
+      paint: { 'line-color': lineColor, 'line-width': 3.5 },
     });
   }
 }
