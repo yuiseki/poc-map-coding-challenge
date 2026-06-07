@@ -10,24 +10,36 @@ const ROUTE: [number, number][] = [
   [135.4959, 34.7024], // 大阪
 ];
 
-const LABELS = ['東京', '長野', '名古屋', '大阪'];
+const EAST_ASIA: [number, number][] = [
+  [139.7671, 35.6812], // 東京
+  [126.9780, 37.5665], // ソウル
+  [116.3912, 39.9042], // 北京
+];
 
-// Per-test scenarios: which coords to draw and what camera bounds to use
+const EURASIA: [number, number][] = [
+  [139.7671, 35.6812], // 東京
+  [  2.3522, 48.8566], // パリ
+  [ -0.1276, 51.5074], // ロンドン
+];
+
 const SCENARIOS: {
   coords: [number, number][];
+  labels: string[];
   bounds: [[number, number], [number, number]];
   check: (r: Feature<LineString>, coords: [number, number][]) => boolean;
 }[] = [
   {
     // Test 1: 2-point LineString (東京→大阪)
     coords: [[139.7671, 35.6812], [135.4959, 34.7024]],
-    bounds: [[134, 34], [141, 36.5]],
+    labels: ['東京', '大阪'],
+    bounds: [[133, 33.5], [141.5, 37]],
     check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
                      JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
   },
   {
-    // Test 2: 4-point LineString (full ROUTE)
+    // Test 2: 4-point LineString — length check
     coords: ROUTE,
+    labels: ['東京', '長野', '名古屋', '大阪'],
     bounds: [[134, 34], [141, 37.5]],
     check: (r, _c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
                       r.geometry.coordinates.length === 4,
@@ -35,7 +47,25 @@ const SCENARIOS: {
   {
     // Test 3: coordinates match exactly
     coords: ROUTE,
+    labels: ['東京', '長野', '名古屋', '大阪'],
     bounds: [[134, 34], [141, 37.5]],
+    check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
+                     JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
+  },
+  {
+    // Test 4: East Asia crossing (東京→ソウル→北京)
+    coords: EAST_ASIA,
+    labels: ['東京', 'ソウル', '北京'],
+    bounds: [[113, 33], [142, 42]],
+    check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
+                     r.geometry.coordinates.length === c.length &&
+                     JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
+  },
+  {
+    // Test 5: Eurasia crossing (東京→パリ→ロンドン)
+    coords: EURASIA,
+    labels: ['東京', 'パリ', 'ロンドン'],
+    bounds: [[-5, 30], [145, 56]],
     check: (r, c) => r?.type === 'Feature' && r.geometry?.type === 'LineString' &&
                      JSON.stringify(r.geometry.coordinates) === JSON.stringify(c),
   },
@@ -50,13 +80,12 @@ function tryLine(userFn: ((...args: unknown[]) => unknown), coords: [number, num
 }
 
 function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
-  const ran = isFinite(revealedCount) && revealedCount >= 0;
-  const idx = Math.min(Math.max(0, (ran ? revealedCount : 0) - 1), SCENARIOS.length - 1);
-  const scenario = ran ? SCENARIOS[idx] : SCENARIOS[SCENARIOS.length - 1];
+  const ran = isFinite(revealedCount) && revealedCount > 0;
+  const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
+  const scenario = ran ? SCENARIOS[idx] : SCENARIOS[1]; // default: full ROUTE view
 
   map.fitBounds(scenario.bounds, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, duration: MAP_ANIM_DURATION_MS });
 
-  // Try user's function for this scenario's coords
   let lineResult: Feature<LineString> | null = null;
   let ok = false;
   if (userFn) {
@@ -67,22 +96,14 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const lineColor = !userFn ? '#4f8ef7' : ok ? '#22c55e' : '#ef4444';
   const pointColor = !userFn ? '#f59e0b' : ok ? '#22c55e' : '#ef4444';
 
-  // Show which points are used in this scenario
-  const usedIndices = scenario.coords === ROUTE
-    ? [0, 1, 2, 3]
-    : [0, 3]; // Tokyo + Osaka for 2-point test
-
+  // Points for this scenario
   map.addSource('challenge-points', {
     type: 'geojson',
     data: {
       type: 'FeatureCollection',
-      features: ROUTE.map((c, i) => ({
+      features: scenario.coords.map((c, i) => ({
         type: 'Feature',
-        properties: {
-          label: LABELS[i],
-          color: usedIndices.includes(i) ? pointColor : '#3a3a5a',
-          radius: usedIndices.includes(i) ? 8 : 5,
-        },
+        properties: { label: scenario.labels[i], color: pointColor },
         geometry: { type: 'Point', coordinates: c },
       })),
     },
@@ -92,7 +113,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     type: 'circle',
     source: 'challenge-points',
     paint: {
-      'circle-radius': ['get', 'radius'],
+      'circle-radius': 8,
       'circle-color': ['get', 'color'],
       'circle-stroke-width': 2,
       'circle-stroke-color': '#fff',
@@ -177,7 +198,7 @@ declare function solve(
 `,
   tests: [
     {
-      name: '2点の LineString',
+      name: '2点の LineString（東京→大阪）',
       run: (fn) => {
         const coords: [number, number][] = [[139.7671, 35.6812], [135.4959, 34.7024]];
         const r = fn(coords) as Feature<LineString>;
@@ -188,7 +209,7 @@ declare function solve(
       },
     },
     {
-      name: '4点の LineString',
+      name: '4点の LineString（東京→長野→名古屋→大阪）',
       run: (fn) => {
         const r = fn(ROUTE) as Feature<LineString>;
         if (r?.geometry?.type !== 'LineString') throw new Error('geometry.type が "LineString" ではありません');
@@ -201,6 +222,28 @@ declare function solve(
         const r = fn(ROUTE) as Feature<LineString>;
         if (JSON.stringify(r.geometry.coordinates) !== JSON.stringify(ROUTE))
           throw new Error('coordinates が入力と一致しません');
+      },
+    },
+    {
+      name: '東アジア横断（東京→ソウル→北京）',
+      run: (fn) => {
+        const r = fn(EAST_ASIA) as Feature<LineString>;
+        if (r?.type !== 'Feature') throw new Error('type が "Feature" ではありません');
+        if (r.geometry?.type !== 'LineString') throw new Error('geometry.type が "LineString" ではありません');
+        if (JSON.stringify(r.geometry.coordinates) !== JSON.stringify(EAST_ASIA))
+          throw new Error('coordinates が一致しません');
+      },
+    },
+    {
+      name: 'ユーラシア横断（東京→パリ→ロンドン）',
+      run: (fn) => {
+        const r = fn(EURASIA) as Feature<LineString>;
+        if (r?.type !== 'Feature') throw new Error('type が "Feature" ではありません');
+        if (r.geometry?.type !== 'LineString') throw new Error('geometry.type が "LineString" ではありません');
+        if (r.geometry.coordinates.length !== EURASIA.length)
+          throw new Error(`length が ${r.geometry.coordinates.length} です（期待値: ${EURASIA.length}）`);
+        if (JSON.stringify(r.geometry.coordinates) !== JSON.stringify(EURASIA))
+          throw new Error('coordinates が一致しません');
       },
     },
   ],

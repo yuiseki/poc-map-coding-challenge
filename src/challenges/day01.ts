@@ -24,7 +24,7 @@ function checkPoint(userFn: ((...args: unknown[]) => unknown), lon: number, lat:
 
 function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | null, revealedCount: number) {
   // How many tests have been revealed (finite number means Run was pressed)
-  const ran = isFinite(revealedCount) && revealedCount >= 0;
+  const ran = isFinite(revealedCount) && revealedCount > 0;
   const revealed = ran ? revealedCount : 0;
 
   // Per-target status: 'pending' | 'pass' | 'fail'
