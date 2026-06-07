@@ -6,6 +6,7 @@ export { day07 } from './day07';
 export { day08 } from './day08';
 export { day10 } from './day10';
 export { day17 } from './day17';
+export { day18 } from './day18';
 export { day21 } from './day21';
 export { day22 } from './day22';
 
@@ -17,8 +18,9 @@ import { day07 } from './day07';
 import { day08 } from './day08';
 import { day10 } from './day10';
 import { day17 } from './day17';
+import { day18 } from './day18';
 import { day21 } from './day21';
 import { day22 } from './day22';
 import type { Challenge } from './types';
 
-export const challenges: Challenge[] = [day01, day02, day03, day06, day07, day08, day10, day17, day21, day22];
+export const challenges: Challenge[] = [day01, day02, day03, day06, day07, day08, day10, day17, day18, day21, day22];
