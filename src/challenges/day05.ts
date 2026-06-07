@@ -75,7 +75,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
 export const day05: Challenge = {
   id: '05',
   title: 'Filter',
-  difficulty: 'Easy',
+  difficulty: 'Medium',
   description: `
 <h2>Day 05: Filter</h2>
 <p>GeoJSON Feature の配列を受け取り、<strong>属性条件</strong>と<strong>bbox 条件</strong>の両方を満たすものだけを返してください。</p>

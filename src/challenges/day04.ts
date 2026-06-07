@@ -98,7 +98,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
 export const day04: Challenge = {
   id: '04',
   title: 'Nearest',
-  difficulty: 'Easy',
+  difficulty: 'Medium',
   description: `
 <h2>Day 04: Nearest</h2>
 <p>現在地から最も近い施設の <strong>name</strong> を返してください。</p>
