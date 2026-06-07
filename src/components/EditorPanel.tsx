@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import Editor, { loader } from '@monaco-editor/react';
 import type { Monaco } from '@monaco-editor/react';
-import type { IDisposable } from 'monaco-editor';
+import type { editor, IDisposable } from 'monaco-editor';
 
 // Load Monaco from CDN to avoid Vite worker config
 loader.config({
@@ -19,6 +19,7 @@ type Props = {
 export function EditorPanel({ value, typeDeclarations, onChange, onRun, isRunning }: Props) {
   const monacoRef = useRef<Monaco | null>(null);
   const libRef = useRef<IDisposable | null>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   // Update type declarations when challenge changes
   useEffect(() => {
@@ -31,8 +32,14 @@ export function EditorPanel({ value, typeDeclarations, onChange, onRun, isRunnin
     );
   }, [typeDeclarations]);
 
-  function handleMount(_editor: unknown, monaco: Monaco) {
+  function handleMount(ed: editor.IStandaloneCodeEditor, monaco: Monaco) {
     monacoRef.current = monaco;
+    editorRef.current = ed;
+
+    // Ctrl+S / Cmd+S → Run
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      onRun();
+    });
 
     // Enable JavaScript type checking (checkJs)
     monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
