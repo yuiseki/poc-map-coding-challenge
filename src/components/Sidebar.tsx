@@ -9,7 +9,7 @@ type Props = {
 };
 
 const diffColor: Record<string, string> = {
-  Tutorial: 'var(--text-dim)',
+  Tutorial: 'var(--tutorial)',
   Easy: 'var(--easy)',
   Medium: 'var(--medium)',
   Hard: 'var(--hard)',
