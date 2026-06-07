@@ -9,12 +9,12 @@ import { MapPanel } from './components/MapPanel';
 type CodeMap = Record<string, string>;
 
 const LS_KEY = 'map-coding-challenge:codes';
+const REVEAL_DELAY_MS = 260; // ms per test reveal
 
 function loadCodes(): CodeMap {
   const defaults = Object.fromEntries(challenges.map((c) => [c.id, c.starterCode]));
   try {
     const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as Partial<CodeMap>;
-    // Only carry over keys that exist in defaults to avoid stale challenge data
     const merged = { ...defaults };
     for (const id of Object.keys(defaults)) {
       if (saved[id]) merged[id] = saved[id]!;
@@ -34,6 +34,7 @@ export function App() {
   const [codes, setCodes] = useState<CodeMap>(loadCodes);
   const [allResults, setAllResults] = useState<Record<string, TestResult[]>>({});
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [revealedCount, setRevealedCount] = useState(Infinity);
   const [isRunning, setIsRunning] = useState(false);
   const [runId, setRunId] = useState(0);
   const codeRef = useRef(codes);
@@ -54,6 +55,8 @@ export function App() {
 
   const handleRun = useCallback(() => {
     setIsRunning(true);
+    setRevealedCount(0);
+
     setTimeout(() => {
       const code = codeRef.current[currentId] ?? '';
 
@@ -73,12 +76,12 @@ export function App() {
       } catch (e) {
         console.log = origLog;
         const msg = e instanceof Error ? e.message : String(e);
+        const errorResults = challenge.tests.map((t) => ({ name: t.name, pass: false, error: `SyntaxError: ${msg}` }));
         setConsoleLogs([`SyntaxError: ${msg}`]);
-        setAllResults((prev) => ({
-          ...prev,
-          [currentId]: challenge.tests.map((t) => ({ name: t.name, pass: false, error: `SyntaxError: ${msg}` })),
-        }));
+        setAllResults((prev) => ({ ...prev, [currentId]: errorResults }));
         setIsRunning(false);
+        setRevealedCount(0);
+        animateReveal(errorResults.length);
         return;
       }
 
@@ -96,11 +99,20 @@ export function App() {
       setAllResults((prev) => ({ ...prev, [currentId]: results }));
       setRunId((n) => n + 1);
       setIsRunning(false);
+      animateReveal(results.length);
     }, 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId, challenge]);
+
+  function animateReveal(total: number) {
+    for (let i = 0; i < total; i++) {
+      setTimeout(() => setRevealedCount(i + 1), (i + 1) * REVEAL_DELAY_MS);
+    }
+  }
 
   const handleSelectChallenge = (id: string) => {
     setCurrentId(id);
+    setRevealedCount(Infinity);
     setRunId((n) => n + 1);
   };
 
@@ -155,6 +167,7 @@ export function App() {
               challenge={challenge}
               testResults={allResults[currentId] ?? null}
               consoleLogs={consoleLogs}
+              revealedCount={revealedCount}
               runId={runId}
               getUserFn={getUserFn}
             />

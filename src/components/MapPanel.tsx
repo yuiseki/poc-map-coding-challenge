@@ -14,7 +14,8 @@ type Props = {
   challenge: Challenge;
   testResults: TestResult[] | null;
   consoleLogs: string[];
-  runId: number; // increment to re-run map setup
+  revealedCount: number;
+  runId: number;
   getUserFn: () => ((...args: unknown[]) => unknown) | null;
 };
 
@@ -25,7 +26,7 @@ function removeLayers(map: maplibregl.Map) {
   Object.keys(style.sources ?? {}).filter((id) => id.startsWith('challenge-')).forEach((id) => map.removeSource(id));
 }
 
-export function MapPanel({ challenge, testResults, consoleLogs, runId, getUserFn }: Props) {
+export function MapPanel({ challenge, testResults, consoleLogs, revealedCount, runId, getUserFn }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const runIdRef = useRef(runId);
@@ -64,8 +65,12 @@ export function MapPanel({ challenge, testResults, consoleLogs, runId, getUserFn
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
-  const pass = testResults?.filter((r) => r.pass).length ?? 0;
+  const visible = testResults ? testResults.slice(0, revealedCount) : [];
+  const pass = visible.filter((r) => r.pass).length;
   const total = testResults?.length ?? 0;
+  const allRevealed = revealedCount >= total;
+  // The test currently being "executed" (next to reveal)
+  const runningIndex = testResults && !allRevealed ? revealedCount : null;
 
   return (
     <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
@@ -120,24 +125,28 @@ export function MapPanel({ challenge, testResults, consoleLogs, runId, getUserFn
             </div>
           )}
 
-          {/* Test summary */}
-          <div style={{
-            fontSize: 12,
-            fontWeight: 700,
-            marginBottom: 8,
-            color: pass === total ? 'var(--green)' : 'var(--accent)',
-          }}>
-            {pass === total ? '✅ All Passed!' : `${pass} / ${total} Passed`}
-          </div>
+          {/* Test summary — only shown after all revealed */}
+          {allRevealed && (
+            <div style={{
+              fontSize: 12,
+              fontWeight: 700,
+              marginBottom: 8,
+              color: pass === total ? 'var(--green)' : 'var(--accent)',
+              animation: 'testReveal 0.25s ease',
+            }}>
+              {pass === total ? '✅ All Passed!' : `${pass} / ${total} Passed`}
+            </div>
+          )}
 
-          {/* Test items */}
-          {testResults.map((r, i) => (
+          {/* Revealed test items */}
+          {visible.map((r, i) => (
             <div key={i} style={{
               display: 'flex',
               alignItems: 'flex-start',
               gap: 6,
               padding: '4px 0',
               borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+              animation: 'testReveal 0.2s ease',
             }}>
               <span style={{ flexShrink: 0, fontSize: 12 }}>{r.pass ? '✅' : '❌'}</span>
               <div>
@@ -150,6 +159,22 @@ export function MapPanel({ challenge, testResults, consoleLogs, runId, getUserFn
               </div>
             </div>
           ))}
+
+          {/* Currently running test */}
+          {runningIndex !== null && testResults && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 0',
+              borderTop: visible.length > 0 ? '1px solid var(--border)' : 'none',
+            }}>
+              <span style={{ flexShrink: 0, fontSize: 12, animation: 'spin 0.8s linear infinite', display: 'inline-block' }}>⏳</span>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                {testResults[runningIndex].name}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

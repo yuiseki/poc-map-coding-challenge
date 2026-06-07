@@ -30,6 +30,16 @@ html, body, #root {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* Animations */
+@keyframes testReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* MapLibre override */
 .maplibregl-map { font-family: inherit; }
 .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { display: none; }
