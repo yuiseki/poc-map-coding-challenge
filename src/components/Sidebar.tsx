@@ -4,6 +4,7 @@ type Props = {
   challenges: Challenge[];
   currentId: string;
   results: Record<string, TestResult[]>;
+  solvedIds: Set<string>;
   onSelect: (id: string) => void;
 };
 
@@ -13,7 +14,7 @@ const diffColor: Record<string, string> = {
   Hard: 'var(--hard)',
 };
 
-export function Sidebar({ challenges, currentId, results, onSelect }: Props) {
+export function Sidebar({ challenges, currentId, results, solvedIds, onSelect }: Props) {
   return (
     <aside style={{
       width: 240,
@@ -40,6 +41,7 @@ export function Sidebar({ challenges, currentId, results, onSelect }: Props) {
           const res = results[c.id];
           const pass = res?.filter((r) => r.pass).length ?? 0;
           const total = res?.length ?? 0;
+          const solved = solvedIds.has(c.id);
           const active = c.id === currentId;
 
           return (
@@ -70,12 +72,12 @@ export function Sidebar({ challenges, currentId, results, onSelect }: Props) {
                 <span style={{ fontSize: 11, color: diffColor[c.difficulty], fontWeight: 600 }}>
                   {c.difficulty}
                 </span>
-                {res && (
+                {(res || solved) && (
                   <span style={{
                     fontSize: 11,
-                    color: pass === total ? 'var(--green)' : 'var(--text-dim)',
+                    color: (res ? pass === total : false) || solved ? 'var(--green)' : 'var(--text-dim)',
                   }}>
-                    {pass === total ? '✅' : `${pass}/${total}`}
+                    {solved || (res && pass === total) ? '✅' : `${pass}/${total}`}
                   </span>
                 )}
               </div>

@@ -10,6 +10,20 @@ import { MapPanel } from './components/MapPanel';
 type CodeMap = Record<string, string>;
 
 const LS_KEY = 'map-coding-challenge:codes';
+const LS_SOLVED_KEY = 'map-coding-challenge:solved';
+
+function loadSolved(): Set<string> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_SOLVED_KEY) ?? '[]') as string[];
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSolved(solved: Set<string>) {
+  localStorage.setItem(LS_SOLVED_KEY, JSON.stringify([...solved]));
+}
 
 function loadCodes(): CodeMap {
   const defaults = Object.fromEntries(challenges.map((c) => [c.id, c.starterCode]));
@@ -37,6 +51,7 @@ export function App() {
   const [revealedCount, setRevealedCount] = useState(Infinity);
   const [isRunning, setIsRunning] = useState(false);
   const [runId, setRunId] = useState(0);
+  const [solvedIds, setSolvedIds] = useState<Set<string>>(loadSolved);
   const codeRef = useRef(codes);
   codeRef.current = codes;
 
@@ -97,6 +112,15 @@ export function App() {
       console.log = origLog;
       setConsoleLogs(logs);
       setAllResults((prev) => ({ ...prev, [currentId]: results }));
+      if (results.every((r) => r.pass)) {
+        setSolvedIds((prev) => {
+          if (prev.has(currentId)) return prev;
+          const next = new Set(prev);
+          next.add(currentId);
+          saveSolved(next);
+          return next;
+        });
+      }
       setRunId((n) => n + 1);
       setIsRunning(false);
       animateReveal(results.length);
@@ -143,6 +167,7 @@ export function App() {
           challenges={challenges}
           currentId={currentId}
           results={allResults}
+          solvedIds={solvedIds}
           onSelect={handleSelectChallenge}
         />
 
