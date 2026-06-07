@@ -3,14 +3,31 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "serve docs -p 3000",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "node --experimental-strip-types --test",
     "test:01": "node --experimental-strip-types --test 01/index.test.ts",
     "test:02": "node --experimental-strip-types --test 02/index.test.ts",
-    "test:03": "node --experimental-strip-types --test 03/index.test.ts"
+    "test:03": "node --experimental-strip-types --test 03/index.test.ts",
+    "test:04": "node --experimental-strip-types --test 04/index.test.ts",
+    "test:05": "node --experimental-strip-types --test 05/index.test.ts"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^22.10.0",
-    "serve": "^14.2.6"
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "serve": "^14.2.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "maplibre-gl": "^5.24.0",
+    "pmtiles": "^4.4.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }

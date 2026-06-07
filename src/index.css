@@ -1,0 +1,35 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #1a1a1a;
+  --panel:    #282828;
+  --panel2:   #2f2f2f;
+  --border:   #3a3a3a;
+  --accent:   #ffa116;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --blue:     #4f8ef7;
+  --text:     #eff2f6;
+  --text-dim: #8d96a5;
+  --mono:     'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+  --easy:     #22c55e;
+  --medium:   #f59e0b;
+  --hard:     #ef4444;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* MapLibre override */
+.maplibregl-map { font-family: inherit; }
+.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { display: none; }
