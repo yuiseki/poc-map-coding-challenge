@@ -8,12 +8,32 @@ import { MapPanel } from './components/MapPanel';
 
 type CodeMap = Record<string, string>;
 
+const LS_KEY = 'map-coding-challenge:codes';
+
+function loadCodes(): CodeMap {
+  const defaults = Object.fromEntries(challenges.map((c) => [c.id, c.starterCode]));
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as Partial<CodeMap>;
+    // Only carry over keys that exist in defaults to avoid stale challenge data
+    const merged = { ...defaults };
+    for (const id of Object.keys(defaults)) {
+      if (saved[id]) merged[id] = saved[id]!;
+    }
+    return merged;
+  } catch {
+    return defaults;
+  }
+}
+
+function saveCodes(codes: CodeMap) {
+  localStorage.setItem(LS_KEY, JSON.stringify(codes));
+}
+
 export function App() {
   const [currentId, setCurrentId] = useState(challenges[0].id);
-  const [codes, setCodes] = useState<CodeMap>(() =>
-    Object.fromEntries(challenges.map((c) => [c.id, c.starterCode]))
-  );
+  const [codes, setCodes] = useState<CodeMap>(loadCodes);
   const [allResults, setAllResults] = useState<Record<string, TestResult[]>>({});
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [runId, setRunId] = useState(0);
   const codeRef = useRef(codes);
@@ -36,12 +56,24 @@ export function App() {
     setIsRunning(true);
     setTimeout(() => {
       const code = codeRef.current[currentId] ?? '';
+
+      // Capture console.log during execution
+      const logs: string[] = [];
+      const origLog = console.log;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      console.log = (...args: any[]) => {
+        logs.push(args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '));
+        origLog(...args);
+      };
+
       let fn: ((...args: unknown[]) => unknown) | null = null;
       try {
         // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
         fn = new Function(code + `\nreturn ${challenge.functionName};`)() as (...args: unknown[]) => unknown;
       } catch (e) {
+        console.log = origLog;
         const msg = e instanceof Error ? e.message : String(e);
+        setConsoleLogs([`SyntaxError: ${msg}`]);
         setAllResults((prev) => ({
           ...prev,
           [currentId]: challenge.tests.map((t) => ({ name: t.name, pass: false, error: `SyntaxError: ${msg}` })),
@@ -59,6 +91,8 @@ export function App() {
         }
       });
 
+      console.log = origLog;
+      setConsoleLogs(logs);
       setAllResults((prev) => ({ ...prev, [currentId]: results }));
       setRunId((n) => n + 1);
       setIsRunning(false);
@@ -107,7 +141,11 @@ export function App() {
           <div style={{ flex: '0 0 50%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
             <EditorPanel
               value={codes[currentId] ?? ''}
-              onChange={(v) => setCodes((prev) => ({ ...prev, [currentId]: v }))}
+              onChange={(v) => setCodes((prev) => {
+                const next = { ...prev, [currentId]: v };
+                saveCodes(next);
+                return next;
+              })}
               onRun={handleRun}
               isRunning={isRunning}
             />
@@ -116,6 +154,7 @@ export function App() {
             <MapPanel
               challenge={challenge}
               testResults={allResults[currentId] ?? null}
+              consoleLogs={consoleLogs}
               runId={runId}
               getUserFn={getUserFn}
             />

@@ -13,6 +13,7 @@ const MAP_STYLE = 'https://z.yuiseki.net/static/maps/styles/osm-fiord.json';
 type Props = {
   challenge: Challenge;
   testResults: TestResult[] | null;
+  consoleLogs: string[];
   runId: number; // increment to re-run map setup
   getUserFn: () => ((...args: unknown[]) => unknown) | null;
 };
@@ -24,7 +25,7 @@ function removeLayers(map: maplibregl.Map) {
   Object.keys(style.sources ?? {}).filter((id) => id.startsWith('challenge-')).forEach((id) => map.removeSource(id));
 }
 
-export function MapPanel({ challenge, testResults, runId, getUserFn }: Props) {
+export function MapPanel({ challenge, testResults, consoleLogs, runId, getUserFn }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const runIdRef = useRef(runId);
@@ -80,12 +81,46 @@ export function MapPanel({ challenge, testResults, runId, getUserFn }: Props) {
           border: '1px solid var(--border)',
           borderRadius: 8,
           padding: '10px 14px',
-          maxWidth: 260,
-          maxHeight: '60%',
+          width: 270,
+          maxHeight: 'calc(100% - 20px)',
           overflowY: 'auto',
           backdropFilter: 'blur(8px)',
           zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
         }}>
+          {/* Console logs */}
+          {consoleLogs.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Console
+              </div>
+              <div style={{
+                background: '#0f0f0f',
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                padding: '6px 8px',
+                maxHeight: 120,
+                overflowY: 'auto',
+              }}>
+                {consoleLogs.map((log, i) => (
+                  <div key={i} style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: 11,
+                    color: '#a8d8a8',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                  }}>
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Test summary */}
           <div style={{
             fontSize: 12,
             fontWeight: 700,
@@ -94,6 +129,8 @@ export function MapPanel({ challenge, testResults, runId, getUserFn }: Props) {
           }}>
             {pass === total ? '✅ All Passed!' : `${pass} / ${total} Passed`}
           </div>
+
+          {/* Test items */}
           {testResults.map((r, i) => (
             <div key={i} style={{
               display: 'flex',
