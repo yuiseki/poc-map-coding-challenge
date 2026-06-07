@@ -66,7 +66,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
   const idx = Math.min(Math.max(0, revealedCount - 1), SCENARIOS.length - 1);
   const { label, points, expected, center, zoom } = SCENARIOS[idx];
 
-  if (revealedCount !== 0) map.flyTo({ center, zoom, speed: 2.0 });
+  if (revealedCount !== 0) map.easeTo({ center, zoom, duration: 500 });
 
   let result: BBox | null = null;
   if (userFn) {

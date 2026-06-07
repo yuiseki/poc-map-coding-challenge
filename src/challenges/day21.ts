@@ -34,7 +34,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
       { padding: { top: 80, bottom: 80, left: 80, right: 320 }, speed: 2.0, maxZoom: 8 }
     );
   } else {
-    if (revealedCount !== 0) map.flyTo({ center: from, zoom: 8, speed: 2.0 });
+    if (revealedCount !== 0) map.easeTo({ center: from, zoom: 8, duration: 500 });
   }
 
   // Compute user's result

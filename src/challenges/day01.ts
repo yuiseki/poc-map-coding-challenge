@@ -47,7 +47,7 @@ function setupMap(map: MaplibreMap, userFn: ((...args: unknown[]) => unknown) | 
     map.fitBounds([[-15, -5], [145, 50]], { padding: 60, speed: 2.0 });
   } else {
     // Fly to each city in sequence — use speed so short hops finish well within REVEAL_DELAY_MS
-    map.flyTo({ center: [focus.lon, focus.lat], zoom: 9, speed: 2.0 });
+    map.easeTo({ center: [focus.lon, focus.lat], zoom: 9, duration: 500 });
   }
 
   // Show targets revealed so far (+ all in default view)

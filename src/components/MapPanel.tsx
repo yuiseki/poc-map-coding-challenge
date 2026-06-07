@@ -60,9 +60,20 @@ export function MapPanel({ challenge, testResults, consoleLogs, revealedCount, r
     runIdRef.current = runId;
     if (!countChanged && revealedCount === Infinity) return;
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    removeLayers(map);
-    challenge.setupMap(map, getUserFn(), revealedCount);
+    if (!map) return;
+
+    const run = () => {
+      removeLayers(map);
+      challenge.setupMap(map, getUserFn(), revealedCount);
+    };
+
+    if (map.isStyleLoaded()) {
+      run();
+    } else {
+      // Style still loading (e.g. no cache) — wait then run
+      map.once('load', run);
+      return () => { map.off('load', run); };
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, revealedCount]);
 
