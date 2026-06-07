@@ -136,16 +136,12 @@ export const day07: Challenge = {
 <h2>Day 07: Great Circle Distance</h2>
 <p>地球上の2点間の最短距離（大圏距離）を<strong>キロメートル単位</strong>で返してください。</p>
 <h3>Haversine 公式</h3>
-<pre>const R = 6371; // 地球の半径 (km)
-const toRad = (deg) => deg * Math.PI / 180;
-
-const dLat = toRad(lat2 - lat1);
-const dLon = toRad(lon2 - lon1);
-const a = Math.sin(dLat/2)**2
-        + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2))
-        * Math.sin(dLon/2)**2;
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-return R * c;</pre>
+<p>地球を半径 <code>R = 6371 km</code> の球体として扱います。</p>
+<pre>a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
+c = 2 × atan2(√a, √(1−a))
+d = R × c</pre>
+<p style="color:#94a3b8;font-size:12px">💡 度数法 → ラジアン変換: <code>rad = deg × π / 180</code><br>
+JS の三角関数: <code>Math.sin</code> / <code>Math.cos</code> / <code>Math.atan2</code> / <code>Math.sqrt</code></p>
 <h3>例</h3>
 <pre>solve([139.6917, 35.6895], [2.3522, 48.8566])
 // 東京 → パリ
@@ -155,7 +151,7 @@ return R * c;</pre>
   <li>座標は <code>[longitude, latitude]</code> の順（GeoJSON 準拠）</li>
   <li>地球の半径は <code>6371 km</code> を使用すること</li>
   <li>同じ地点の場合は <code>0</code> を返す</li>
-  <li>誤差は <strong>±50 km</strong> 以内であること（Haversine 実装なら ±1km 以内）</li>
+  <li>誤差は <strong>±50 km</strong> 以内であること</li>
 </ul>`,
   starterCode: `function solve(from, to) {
   // from: [longitude, latitude]

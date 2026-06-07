@@ -121,20 +121,15 @@ export const day08: Challenge = {
 <h2>Day 08: Point in Polygon</h2>
 <p>ある点が多角形の<strong>内側にあるかどうか</strong>を判定してください。</p>
 <h3>レイキャスティング法</h3>
-<p>点から右方向へ水平レイを飛ばし、ポリゴンの辺と交差する回数を数えます。</p>
-<pre>function solve(point, polygon) {
-  const [px, py] = point;
-  let inside = false;
-  const n = polygon.length;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
-    const intersects = (yi > py) !== (yj > py)
-      && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}</pre>
+<p>点から右方向へ水平レイを飛ばし、ポリゴンの辺と交差する回数を数えます。<br>
+交差回数が<strong>奇数 → 内側</strong>、<strong>偶数 → 外側</strong>です。</p>
+<pre>for 各辺 (頂点 i と 頂点 j のペア):
+  レイがこの辺と交差するか？
+    → Y 座標が点を挟んでいる かつ
+       交差点の X 座標が点より右にある
+  交差するたびに inside を反転（true ↔ false）
+return inside</pre>
+<p style="color:#94a3b8;font-size:12px">💡 辺のループ: <code>i = 0..n-1</code>、<code>j</code> は <code>i</code> の一つ前の頂点（最後の辺は頂点 n-1 と頂点 0 をつなぐ）</p>
 <h3>例</h3>
 <pre>solve([139.7, 35.7], [[139.6,35.6],[139.8,35.6],[139.8,35.8],[139.6,35.8]])
 → true（東京周辺の矩形の内側）</pre>
